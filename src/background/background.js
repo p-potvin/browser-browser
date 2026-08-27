@@ -49,11 +49,17 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
     if (message.action === 'navigate') {
       const targetTabId = (sender && sender.tab && sender.tab.id) ? sender.tab.id : undefined;
       
+      // In Firefox, browser.tabs.update throws 'Illegal URL' on file:/// URLs from background scripts.
+      // If the target is already a content script or page, it should use native DOM navigation.
+      if (message.url && message.url.startsWith('file://')) {
+        sendResponse({ success: false, reason: 'file_url_direct_nav_required' });
+        return true;
+      }
+
       if (targetTabId !== undefined) {
         browser.tabs.update(targetTabId, { url: message.url })
           .then(() => sendResponse({ success: true }))
           .catch(err => {
-            console.error('Failed to update tab URL:', err);
             sendResponse({ success: false, error: err.message });
           });
       } else {
@@ -67,7 +73,6 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
           })
           .then(() => sendResponse({ success: true }))
           .catch(err => {
-            console.error('Failed to update active tab:', err);
             sendResponse({ success: false, error: err.message });
           });
       }

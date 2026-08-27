@@ -222,59 +222,58 @@ export async function copyToClipboard(text) {
 export async function navigateTo(url, options = {}) {
   const { inNewTab = false } = options;
 
-  if (inNewTab) {
-    if (typeof browser !== 'undefined' && browser.tabs && browser.tabs.create) {
-      try {
-        await browser.tabs.create({ url });
-        return;
-      } catch (e) {}
-    }
-    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
-      try {
-        await browser.runtime.sendMessage({ action: 'openTab', url });
-        return;
-      } catch (e) {}
-    }
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({ action: 'openTab', url });
+  // 1. If currently inside a file:/// page (content script context), use direct native navigation
+  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+    if (inNewTab) {
+      window.open(url, '_blank');
       return;
+    }
+    window.location.href = url;
+    return;
+  }
+
+  // 2. If opening in new tab
+  if (inNewTab) {
+    if (!url.startsWith('file://')) {
+      if (typeof browser !== 'undefined' && browser.tabs && browser.tabs.create) {
+        try {
+          await browser.tabs.create({ url });
+          return;
+        } catch (e) {}
+      }
     }
     window.open(url, '_blank');
     return;
   }
 
-  // Same tab navigation via WebExtension Background API
+  // 3. If navigating to a file:/// URL:
+  // In Firefox, background tabs.update on file:/// is blocked with 'Illegal URL' error,
+  // so direct anchor click / window.location is the standard and supported method
+  if (url.startsWith('file://')) {
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 100);
+      return;
+    } catch (err) {
+      window.location.href = url;
+      return;
+    }
+  }
+
+  // 4. Same tab navigation for standard web URLs via WebExtension Background API
   if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
     try {
       const response = await browser.runtime.sendMessage({ action: 'navigate', url });
       if (response && response.success) return;
-    } catch (e) {
-      // Fallback
-    }
-  }
-
-  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-    try {
-      chrome.runtime.sendMessage({ action: 'navigate', url }, (res) => {
-        if (chrome.runtime.lastError) {
-          window.location.href = url;
-        }
-      });
-      return;
     } catch (e) {}
   }
 
-  // Fallback: create temporary hidden anchor with native click or assign window.location
-  try {
-    const a = document.createElement('a');
-    a.href = url;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 100);
-  } catch (err) {
-    window.location.href = url;
-  }
+  // Fallback
+  window.location.href = url;
 }
 
 if (typeof window !== 'undefined') {
