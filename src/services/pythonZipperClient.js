@@ -71,10 +71,30 @@ export class PythonZipperClient {
     this.status = 'checking';
     this.notify();
 
+    // 1. Prioritize background script proxy (uses extension host_permissions without CORS errors)
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+      try {
+        const res = await browser.runtime.sendMessage({
+          action: 'checkZipperHealth',
+          baseUrl: this.baseUrl
+        });
+        if (res && typeof res.online === 'boolean') {
+          this.status = res.online ? 'online' : 'offline';
+          this.latencyMs = res.latencyMs || null;
+          this.lastChecked = Date.now();
+          this.notify();
+          return { status: this.status, latencyMs: this.latencyMs };
+        }
+      } catch (e) {
+        // Fallback to direct fetch
+      }
+    }
+
+    // 2. Direct fetch fallback with silent error catching
     const start = performance.now();
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
 
       const resp = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
@@ -85,12 +105,7 @@ export class PythonZipperClient {
 
       this.latencyMs = Math.round(performance.now() - start);
       this.lastChecked = Date.now();
-
-      if (resp.ok) {
-        this.status = 'online';
-      } else {
-        this.status = 'offline';
-      }
+      this.status = resp.ok ? 'online' : 'offline';
     } catch (err) {
       this.status = 'offline';
       this.latencyMs = null;

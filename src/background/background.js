@@ -93,14 +93,25 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
       return true;
     }
 
-    if (message.action === 'fetchDirectory') {
-      fetch(message.url)
+    if (message.action === 'checkZipperHealth') {
+      const start = performance.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+      fetch(`${message.baseUrl || 'http://127.0.0.1:5171'}/health`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      })
         .then(res => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.text();
+          clearTimeout(timeoutId);
+          const latencyMs = Math.round(performance.now() - start);
+          sendResponse({ online: res.ok, latencyMs });
         })
-        .then(html => sendResponse({ success: true, html }))
-        .catch(err => sendResponse({ success: false, error: err.message }));
+        .catch(() => {
+          clearTimeout(timeoutId);
+          sendResponse({ online: false, latencyMs: null });
+        });
       return true;
     }
   });
