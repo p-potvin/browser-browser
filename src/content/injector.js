@@ -12,6 +12,7 @@ import { PreviewModal } from '../app/components/previewModal.js';
 import { ZipperWidget } from '../app/components/zipperWidget.js';
 import { KeybindingsController } from '../common/keybindings.js';
 import { getSettings, saveSettings } from '../common/storage.js';
+import { navigateTo } from '../common/utils.js';
 
 export class DirectoryInjector {
   constructor() {
@@ -125,7 +126,7 @@ export class DirectoryInjector {
     await NavbarComponent.render(topbar, {
       currentUrl: this.parsedData.currentUrl,
       currentView: this.currentView,
-      onNavigate: (url) => { window.location.href = url; },
+      onNavigate: (url) => { navigateTo(url); },
       onSearch: (q) => {
         this.searchQuery = q;
         this.applyFilters();
@@ -143,7 +144,7 @@ export class DirectoryInjector {
     await SidebarComponent.render(sidebar, {
       currentUrl: this.parsedData.currentUrl,
       activeCategory: this.currentCategory,
-      onNavigate: (url) => { window.location.href = url; },
+      onNavigate: (url) => { navigateTo(url); },
       onFilterCategory: (cat) => {
         this.currentCategory = cat;
         this.applyFilters();
@@ -170,7 +171,7 @@ export class DirectoryInjector {
       selectedIndex: this.selectedIndex,
       onOpenItem: (item) => {
         if (item.isDirectory) {
-          window.location.href = item.url;
+          navigateTo(item.url);
         } else {
           this.previewModal.open(item, this.filteredItems);
         }
@@ -245,7 +246,7 @@ export class DirectoryInjector {
         const item = this.filteredItems[this.selectedIndex];
         if (item) {
           if (item.isDirectory) {
-            window.location.href = item.url;
+            navigateTo(item.url);
           } else {
             this.previewModal.open(item, this.filteredItems);
           }
@@ -254,13 +255,13 @@ export class DirectoryInjector {
       onParentDirectory: () => {
         const parent = this.parsedData.items.find(i => i.isParent);
         if (parent) {
-          window.location.href = parent.url;
+          navigateTo(parent.url);
         } else {
           // Navigate up one folder segment
           const url = this.parsedData.currentUrl.replace(/\/+$/, '');
           const lastSlash = url.lastIndexOf('/');
           if (lastSlash > 8) {
-            window.location.href = url.substring(0, lastSlash + 1);
+            navigateTo(url.substring(0, lastSlash + 1));
           }
         }
       },

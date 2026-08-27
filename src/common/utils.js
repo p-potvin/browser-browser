@@ -211,3 +211,69 @@ export async function copyToClipboard(text) {
     return false;
   }
 }
+
+/**
+ * Safely navigate current tab or create new tab for local file:/// and extension URLs
+ * Works across content scripts, extension pages, and standard web pages.
+ * @param {string} url 
+ * @param {Object} options 
+ * @param {boolean} [options.inNewTab=false] 
+ */
+export async function navigateTo(url, options = {}) {
+  const { inNewTab = false } = options;
+
+  if (inNewTab) {
+    if (typeof browser !== 'undefined' && browser.tabs && browser.tabs.create) {
+      try {
+        await browser.tabs.create({ url });
+        return;
+      } catch (e) {}
+    }
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+      try {
+        await browser.runtime.sendMessage({ action: 'openTab', url });
+        return;
+      } catch (e) {}
+    }
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'openTab', url });
+      return;
+    }
+    window.open(url, '_blank');
+    return;
+  }
+
+  // Same tab navigation via WebExtension Background API
+  if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+    try {
+      const response = await browser.runtime.sendMessage({ action: 'navigate', url });
+      if (response && response.success) return;
+    } catch (e) {
+      // Fallback
+    }
+  }
+
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+    try {
+      chrome.runtime.sendMessage({ action: 'navigate', url }, (res) => {
+        if (chrome.runtime.lastError) {
+          window.location.href = url;
+        }
+      });
+      return;
+    } catch (e) {}
+  }
+
+  // Fallback: create temporary hidden anchor with native click or assign window.location
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 100);
+  } catch (err) {
+    window.location.href = url;
+  }
+}
+

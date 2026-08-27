@@ -236,9 +236,13 @@ export class AppManager {
         currentUrl: this.currentPath,
         currentView: this.currentView,
         onNavigate: (url) => {
-          this.currentPath = url;
-          this.applyFilters();
-          this.render();
+          if (this.currentDirHandle) {
+            this.currentPath = url;
+            this.applyFilters();
+            this.render();
+          } else {
+            navigateTo(url);
+          }
         },
         onSearch: (q) => {
           this.searchQuery = q;
@@ -259,9 +263,7 @@ export class AppManager {
         currentUrl: this.currentPath,
         activeCategory: this.currentCategory,
         onNavigate: (url) => {
-          this.currentPath = url;
-          this.applyFilters();
-          this.render();
+          navigateTo(url);
         },
         onFilterCategory: (cat) => {
           this.currentCategory = cat;
@@ -292,10 +294,26 @@ export class AppManager {
 
     const options = {
       selectedIndex: this.selectedIndex,
-      onOpenItem: (item) => {
+      onOpenItem: async (item) => {
         if (item.isDirectory) {
-          this.currentPath = item.url;
-          this.loadSampleItems();
+          if (this.currentDirHandle) {
+            try {
+              if (item.isParent && this.dirStack && this.dirStack.length > 0) {
+                const prev = this.dirStack.pop();
+                await this.loadDirectoryHandle(prev, false);
+                return;
+              } else {
+                const subHandle = await this.currentDirHandle.getDirectoryHandle(item.name);
+                if (!this.dirStack) this.dirStack = [];
+                this.dirStack.push(this.currentDirHandle);
+                await this.loadDirectoryHandle(subHandle, false);
+                return;
+              }
+            } catch (e) {
+              console.warn('Subdirectory handle resolution fallback:', e);
+            }
+          }
+          navigateTo(item.url);
         } else {
           this.previewModal.open(item, this.filteredItems);
         }
@@ -370,10 +388,21 @@ export class AppManager {
         const item = this.filteredItems[this.selectedIndex];
         if (item) {
           if (item.isDirectory) {
-            this.currentPath = item.url;
-            this.loadSampleItems();
+            navigateTo(item.url);
           } else {
             this.previewModal.open(item, this.filteredItems);
+          }
+        }
+      },
+      onParentDirectory: () => {
+        const parent = this.filteredItems.find(i => i.isParent);
+        if (parent) {
+          navigateTo(parent.url);
+        } else {
+          const url = this.currentPath.replace(/\/+$/, '');
+          const lastSlash = url.lastIndexOf('/');
+          if (lastSlash > 8) {
+            navigateTo(url.substring(0, lastSlash + 1));
           }
         }
       },

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.0.1] - Thu, 27 Aug 2026 14:41
+
+### Fixed
+- **Firefox `file:///` Navigation Security**: Added background script message routing (`navigate` and `openTab` actions via `browser.tabs.update`) to bypass Firefox content script security blocks on `window.location.href = 'file:///'`.
+- **Directory Traversal in Dedicated Manager**: Enabled hierarchical folder traversal and directory handle navigation when opening subfolders in `manager.html`.
+- **Keyboard Navigation**: Connected `Enter` and `Backspace` keys to `navigateTo` across the DOM injector and manager workspaces.
+- **Brand Logo & Relative Assets**: Standardized relative fallback paths for `logo.svg` across standalone and extension environments.
+
 ## [1.0.0] - Thu, 27 Aug 2026 14:08
 
 ### Added
