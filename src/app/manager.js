@@ -11,7 +11,7 @@ import { PreviewModal } from './components/previewModal.js';
 import { ZipperWidget } from './components/zipperWidget.js';
 import { KeybindingsController } from '../common/keybindings.js';
 import { getSettings, saveSettings } from '../common/storage.js';
-import { getFileTypeCategory, formatBytes, formatDate, showToast } from '../common/utils.js';
+import { getFileTypeCategory, formatBytes, formatDate, showToast, navigateTo } from '../common/utils.js';
 
 export class AppManager {
   constructor() {
@@ -26,6 +26,8 @@ export class AppManager {
     this.selectedIndex = 0;
     this.previewModal = new PreviewModal();
     this.keybindings = null;
+    this.currentDirHandle = null;
+    this.dirStack = [];
   }
 
   async init() {
@@ -42,7 +44,7 @@ export class AppManager {
     const pathParam = params.get('path');
     if (pathParam) {
       this.currentPath = pathParam;
-      await this.loadSampleItems();
+      await this.loadFolder(pathParam);
     }
   }
 
@@ -89,6 +91,7 @@ export class AppManager {
     if (window.showDirectoryPicker) {
       try {
         const dirHandle = await window.showDirectoryPicker();
+        this.dirStack = [];
         await this.loadDirectoryHandle(dirHandle);
         return;
       } catch (err) {
@@ -103,9 +106,25 @@ export class AppManager {
     if (folderInput) folderInput.click();
   }
 
-  async loadDirectoryHandle(dirHandle) {
+  async loadDirectoryHandle(dirHandle, clearStack = true) {
+    this.currentDirHandle = dirHandle;
+    if (clearStack) this.dirStack = [];
     this.currentPath = `file:///${dirHandle.name}/`;
     const items = [];
+
+    // Parent folder entry if we have history
+    if (this.dirStack.length > 0) {
+      items.push({
+        name: '..',
+        url: '..',
+        isDirectory: true,
+        isParent: true,
+        sizeFormatted: '--',
+        dateModified: '--',
+        extension: '',
+        category: 'directory'
+      });
+    }
 
     for await (const entry of dirHandle.values()) {
       const isDir = entry.kind === 'directory';
@@ -150,7 +169,6 @@ export class AppManager {
     Array.from(fileList).forEach(file => {
       const rel = file.webkitRelativePath || file.name;
       const parts = rel.split('/');
-      // If immediate child or root file
       const name = parts.length > 1 ? parts[1] : parts[0];
       const isDir = parts.length > 2;
 
@@ -175,22 +193,61 @@ export class AppManager {
   }
 
   async loadSampleItems() {
-    this.currentPath = 'file:///C:/Users/Administrator/Desktop/Github%20Repos/';
-    this.items = [
-      { name: '..', url: 'file:///C:/Users/Administrator/Desktop/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
-      { name: 'browser-browser', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
-      { name: 'python-zipper', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/python-zipper/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 3600000), category: 'directory', extension: '' },
-      { name: 'vaultwares-themes', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 7200000), category: 'directory', extension: '' },
-      { name: 'agent-ledger', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/agent-ledger/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 18000000), category: 'directory', extension: '' },
-      { name: 'vaultwares-docs', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-docs/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 86400000), category: 'directory', extension: '' },
-      { name: 'CHANGES.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/CHANGES.md', isDirectory: false, isParent: false, sizeFormatted: '4.2 KB', dateModified: formatDate(Date.now() - 100000), category: 'markdown', extension: 'md' },
-      { name: 'package.json', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/package.json', isDirectory: false, isParent: false, sizeFormatted: '1.8 KB', dateModified: formatDate(Date.now() - 200000), category: 'json', extension: 'json' },
-      { name: 'logo.svg', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/assets/logo.svg', isDirectory: false, isParent: false, sizeFormatted: '12.4 KB', dateModified: formatDate(Date.now() - 50000), category: 'image', extension: 'svg' }
-    ];
+    await this.loadFolder('file:///C:/Users/Administrator/Desktop/Github%20Repos/');
+    showToast('Loaded local repositories workspace', 'success');
+  }
+
+  async loadFolder(folderUrl) {
+    this.currentPath = folderUrl;
+    let clean = folderUrl.replace(/file:\/\/\/?/, '').replace(/\/+$/, '');
+    const parts = clean.split('/').filter(Boolean);
+    const folderName = parts.length > 0 ? decodeURIComponent(parts[parts.length - 1]) : 'Root';
+
+    if (folderName === 'vaultwares-themes') {
+      this.items = [
+        { name: '..', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
+        { name: 'vaultsqware', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
+        { name: 'vaultwares-revisited', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultwares-revisited/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
+        { name: 'README.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/README.md', isDirectory: false, isParent: false, sizeFormatted: '8.0 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' },
+        { name: 'PQC_PROTOCOL_IMPLEMENTATION.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/PQC_PROTOCOL_IMPLEMENTATION.md', isDirectory: false, isParent: false, sizeFormatted: '4.4 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' }
+      ];
+    } else if (folderName === 'vaultsqware') {
+      this.items = [
+        { name: '..', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
+        { name: 'vaultsqware.css', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/vaultsqware.css', isDirectory: false, isParent: false, sizeFormatted: '10.5 KB', dateModified: formatDate(Date.now()), category: 'code', extension: 'css' },
+        { name: 'TOKENS.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/TOKENS.md', isDirectory: false, isParent: false, sizeFormatted: '4.8 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' },
+        { name: 'COMPONENTS.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/COMPONENTS.md', isDirectory: false, isParent: false, sizeFormatted: '2.2 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' }
+      ];
+    } else if (folderName === 'Desktop' || folderName === 'C:' || folderName === 'C:') {
+      this.items = [
+        { name: '..', url: 'file:///C:/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
+        { name: 'Github Repos', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
+        { name: 'Prom-King', url: 'file:///C:/Users/Administrator/Desktop/Prom-King/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
+        { name: 'Downloads', url: 'file:///C:/Users/Administrator/Downloads/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' }
+      ];
+    } else if (folderName === 'Downloads') {
+      this.items = [
+        { name: '..', url: 'file:///C:/Users/Administrator/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
+        { name: 'archive_sample.zip', url: 'file:///C:/Users/Administrator/Downloads/archive_sample.zip', isDirectory: false, isParent: false, sizeFormatted: '18.5 MB', dateModified: formatDate(Date.now()), category: 'archive', extension: 'zip' },
+        { name: 'installer.exe', url: 'file:///C:/Users/Administrator/Downloads/installer.exe', isDirectory: false, isParent: false, sizeFormatted: '45.2 MB', dateModified: formatDate(Date.now()), category: 'file', extension: 'exe' }
+      ];
+    } else {
+      // Default Github Repos view
+      this.items = [
+        { name: '..', url: 'file:///C:/Users/Administrator/Desktop/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
+        { name: 'browser-browser', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
+        { name: 'python-zipper', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/python-zipper/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 3600000), category: 'directory', extension: '' },
+        { name: 'vaultwares-themes', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 7200000), category: 'directory', extension: '' },
+        { name: 'agent-ledger', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/agent-ledger/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 18000000), category: 'directory', extension: '' },
+        { name: 'vaultwares-docs', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-docs/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 86400000), category: 'directory', extension: '' },
+        { name: 'CHANGES.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/CHANGES.md', isDirectory: false, isParent: false, sizeFormatted: '4.2 KB', dateModified: formatDate(Date.now() - 100000), category: 'markdown', extension: 'md' },
+        { name: 'package.json', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/package.json', isDirectory: false, isParent: false, sizeFormatted: '1.8 KB', dateModified: formatDate(Date.now() - 200000), category: 'json', extension: 'json' },
+        { name: 'logo.svg', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/assets/logo.svg', isDirectory: false, isParent: false, sizeFormatted: '12.4 KB', dateModified: formatDate(Date.now() - 50000), category: 'image', extension: 'svg' }
+      ];
+    }
 
     this.applyFilters();
     this.render();
-    showToast('Loaded local repositories workspace', 'success');
   }
 
   applyFilters() {
@@ -236,13 +293,7 @@ export class AppManager {
         currentUrl: this.currentPath,
         currentView: this.currentView,
         onNavigate: (url) => {
-          if (this.currentDirHandle) {
-            this.currentPath = url;
-            this.applyFilters();
-            this.render();
-          } else {
-            navigateTo(url);
-          }
+          this.loadFolder(url);
         },
         onSearch: (q) => {
           this.searchQuery = q;
@@ -254,7 +305,7 @@ export class AppManager {
           await saveSettings({ defaultView: view });
           this.renderFiles();
         },
-        onRefresh: () => this.loadSampleItems()
+        onRefresh: () => this.loadFolder(this.currentPath)
       });
     }
 
@@ -263,7 +314,7 @@ export class AppManager {
         currentUrl: this.currentPath,
         activeCategory: this.currentCategory,
         onNavigate: (url) => {
-          navigateTo(url);
+          this.loadFolder(url);
         },
         onFilterCategory: (cat) => {
           this.currentCategory = cat;
@@ -313,7 +364,7 @@ export class AppManager {
               console.warn('Subdirectory handle resolution fallback:', e);
             }
           }
-          navigateTo(item.url);
+          await this.loadFolder(item.url);
         } else {
           this.previewModal.open(item, this.filteredItems);
         }
@@ -388,7 +439,7 @@ export class AppManager {
         const item = this.filteredItems[this.selectedIndex];
         if (item) {
           if (item.isDirectory) {
-            navigateTo(item.url);
+            this.loadFolder(item.url);
           } else {
             this.previewModal.open(item, this.filteredItems);
           }
@@ -397,12 +448,12 @@ export class AppManager {
       onParentDirectory: () => {
         const parent = this.filteredItems.find(i => i.isParent);
         if (parent) {
-          navigateTo(parent.url);
+          this.loadFolder(parent.url);
         } else {
           const url = this.currentPath.replace(/\/+$/, '');
           const lastSlash = url.lastIndexOf('/');
           if (lastSlash > 8) {
-            navigateTo(url.substring(0, lastSlash + 1));
+            this.loadFolder(url.substring(0, lastSlash + 1));
           }
         }
       },

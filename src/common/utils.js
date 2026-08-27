@@ -277,3 +277,8 @@ export async function navigateTo(url, options = {}) {
   }
 }
 
+if (typeof window !== 'undefined') {
+  window.navigateTo = navigateTo;
+}
+
+
