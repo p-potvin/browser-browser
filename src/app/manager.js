@@ -335,7 +335,11 @@ export class AppManager {
         currentUrl: this.currentPath,
         currentView: this.currentView,
         onNavigate: (url) => {
-          this.loadFolder(url);
+          if (this.currentDirHandle) {
+            this.loadFolder(url);
+          } else {
+            navigateTo(url);
+          }
         },
         onSearch: (q) => {
           this.searchQuery = q;
@@ -347,7 +351,13 @@ export class AppManager {
           await saveSettings({ defaultView: view });
           this.renderFiles();
         },
-        onRefresh: () => this.loadFolder(this.currentPath)
+        onRefresh: () => {
+          if (this.currentDirHandle) {
+            this.loadFolder(this.currentPath);
+          } else {
+            navigateTo(this.currentPath);
+          }
+        }
       });
     }
 
@@ -362,7 +372,11 @@ export class AppManager {
           this.render();
         },
         onNavigate: (url) => {
-          this.loadFolder(url);
+          if (this.currentDirHandle) {
+            this.loadFolder(url);
+          } else {
+            navigateTo(url);
+          }
         },
         onFilterCategory: (cat) => {
           this.currentCategory = cat;
@@ -412,7 +426,7 @@ export class AppManager {
               console.warn('Subdirectory handle resolution fallback:', e);
             }
           }
-          await this.loadFolder(item.url);
+          navigateTo(item.url);
         } else {
           this.previewModal.open(item, this.filteredItems);
         }
@@ -487,7 +501,11 @@ export class AppManager {
         const item = this.filteredItems[this.selectedIndex];
         if (item) {
           if (item.isDirectory) {
-            this.loadFolder(item.url);
+            if (this.currentDirHandle) {
+              this.loadFolder(item.url);
+            } else {
+              navigateTo(item.url);
+            }
           } else {
             this.previewModal.open(item, this.filteredItems);
           }
@@ -496,12 +514,12 @@ export class AppManager {
       onParentDirectory: () => {
         const parent = this.filteredItems.find(i => i.isParent);
         if (parent) {
-          this.loadFolder(parent.url);
+          navigateTo(parent.url);
         } else {
           const url = this.currentPath.replace(/\/+$/, '');
           const lastSlash = url.lastIndexOf('/');
           if (lastSlash > 8) {
-            this.loadFolder(url.substring(0, lastSlash + 1));
+            navigateTo(url.substring(0, lastSlash + 1));
           }
         }
       },

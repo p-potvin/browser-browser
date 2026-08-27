@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "matches": ["file:///*"],
-      "js": ["src/content/content.js"],
+      "js": ["src/content/content-loader.js"],
       "css": ["src/common/theme.css", "src/content/content.css"],
       "run_at": "document_idle",
       "all_frames": false

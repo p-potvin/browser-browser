@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.1.1] - Thu, 27 Aug 2026 15:13
+
+### Fixed
+- **Content Script Execution on `file:///` Pages**: Created `src/content/content-loader.js` using dynamic module imports to resolve `SyntaxError: import declarations may only appear at top level of a module` in Firefox content scripts.
+- **Direct Live Tab Routing**: Fixed `manager.js` to route all drive (`C:`, `D:`, `E:`, `F:`, `G:`, `I:`, `U:`) and folder clicks directly through `navigateTo(url)`, eliminating mock fallback data and loading 100% live filesystem directories across the entire computer.
+- **Single Instance Manager**: Added background tab querying to bring existing manager tab to focus instead of opening redundant tabs.
+
 ## [1.1.0] - Thu, 27 Aug 2026 14:57
 
 ### Added
