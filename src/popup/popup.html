@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>browser-browser</title>
+  <link rel="stylesheet" href="../common/theme.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body class="vwsq-console-shell">
+  <div class="vwsq-popup-container">
+    <div class="vwsq-popup-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="../../assets/favicon.svg" alt="logo" style="width: 20px; height: 20px;" />
+        <span style="font-weight: 700; font-size: 13px; color: var(--vwsq-console-text-bright);">browser²</span>
+      </div>
+      <div id="vwsq-popup-zipper-led" class="vwsq-badge vwsq-badge--online" style="font-size: 10px; padding: 2px 6px;">
+        <span class="vwsq-led vwsq-led--online vwsq-led--live"></span>
+        <span id="vwsq-popup-zipper-text">ZIPPER</span>
+      </div>
+    </div>
+
+    <div class="vwsq-popup-body">
+      <div>
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--vwsq-console-text-dim); margin-bottom: 6px;">Quick Launch Local Drives</div>
+        <div class="vwsq-popup-grid">
+          <button class="vwsq-popup-btn" data-url="file:///C:/">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>Drive (C:)</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///D:/">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>Drive (D:)</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///C:/Users/Administrator/Desktop/">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Desktop</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///C:/Users/Administrator/Desktop/Github%20Repos/">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span>Github Repos</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="vwsq-popup-open-manager" class="vwsq-btn vwsq-btn--primary" style="width: 100%;">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+        <span>Open Dedicated File Manager Tab</span>
+      </button>
+    </div>
+
+    <div class="vwsq-popup-footer">
+      <span style="font-size: 11px; color: var(--vwsq-console-text-dim);">VaultSqwares Engine</span>
+      <button id="vwsq-popup-settings-btn" class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost">Settings</button>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

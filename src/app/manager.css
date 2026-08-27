@@ -1,0 +1,99 @@
+/* ==========================================================================
+   Full Tab File Manager Workspace Styles
+   ========================================================================== */
+
+.vwsq-app-shell {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 22% -4%, rgba(110, 123, 242, 0.13), transparent 34rem),
+    linear-gradient(180deg, var(--vwsq-console-surface, #11141b), var(--vwsq-console-bg, #0a0c11));
+  overflow: hidden;
+}
+
+.vwsq-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 16px;
+  background: var(--vwsq-console-sunken, #070810);
+  border-bottom: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.vwsq-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--vwsq-console-raised, #191d27);
+  border: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+  color: var(--vwsq-console-text, #bac2d2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--vwsq-motion-snap, 90ms);
+}
+
+.vwsq-tab:hover {
+  background: var(--vwsq-console-hover, #1f2430);
+  color: var(--vwsq-console-text-bright, #e6eaf2);
+}
+
+.vwsq-tab.active {
+  background: var(--vwsq-console-active, #323847);
+  border-color: var(--vwsq-iris-500, #6e7bf2);
+  color: var(--vwsq-console-text-bright, #e6eaf2);
+}
+
+.vwsq-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+.vwsq-tab-close:hover {
+  opacity: 1;
+  background: rgba(244, 93, 107, 0.2);
+  color: var(--vwsq-signal-alert, #f45d6b);
+}
+
+.vwsq-empty-workspace {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+}
+
+.vwsq-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 580px;
+  padding: 48px 32px;
+  border: 2px dashed var(--vwsq-console-border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: var(--vwsq-radius-card, 28px);
+  background: var(--vwsq-console-raised, #191d27);
+  transition: all var(--vwsq-motion-ui, 160ms);
+}
+
+.vwsq-dropzone.dragover {
+  border-color: var(--vwsq-iris-500, #6e7bf2);
+  background: var(--vwsq-console-hover, #1f2430);
+  box-shadow: 0 0 30px var(--vwsq-iris-glow, rgba(110, 123, 242, 0.3));
+}

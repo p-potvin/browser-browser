@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — browser-browser</title>
+  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg" />
+  <link rel="stylesheet" href="../common/theme.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body class="vwsq-console-shell">
+  <div class="vwsq-options-card">
+    <div class="vwsq-options-header">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="../../assets/logo.svg" alt="logo" style="width: 36px; height: 36px;" />
+        <div>
+          <h2 style="font-size: 18px; color: var(--vwsq-console-text-bright);">browser-browser Settings</h2>
+          <div style="font-size: 12px; color: var(--vwsq-console-text-dim);">Configure VaultSqwares theme, Python-Zipper daemon, and directory browsing</div>
+        </div>
+      </div>
+      <span class="vwsq-badge vwsq-badge--iris">v1.0.0</span>
+    </div>
+
+    <!-- Python-Zipper Daemon Setting -->
+    <div class="vwsq-form-group">
+      <label class="vwsq-form-label" for="zipper-url">Python-Zipper Daemon Endpoint</label>
+      <div class="vwsq-form-desc">HTTP URL where your local python-zipper background server or vaultwares-api is listening.</div>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="zipper-url" class="vwsq-input" placeholder="http://127.0.0.1:5171" style="flex: 1;" />
+        <button id="test-zipper-btn" class="vwsq-btn vwsq-btn--ghost">Test Connection</button>
+      </div>
+      <div id="zipper-test-result" style="font-size: 12px; margin-top: 4px; display: none;"></div>
+    </div>
+
+    <!-- Default View Mode -->
+    <div class="vwsq-form-group">
+      <label class="vwsq-form-label" for="default-view">Default Layout Mode</label>
+      <div class="vwsq-form-desc">The default visual presentation when navigating to directories.</div>
+      <select id="default-view" class="vwsq-select">
+        <option value="grid">Grid Thumbnail Cards</option>
+        <option value="table">Detailed Sortable Table</option>
+        <option value="list">Compact List</option>
+      </select>
+    </div>
+
+    <!-- Quick Look Toggle -->
+    <div class="vwsq-form-group">
+      <label class="vwsq-form-label">Keyboard Shortcuts & Spacebar Quick Look</label>
+      <div class="vwsq-form-desc">Enable Spacebar for instant multi-format file inspection, '/' for search, and arrow-key navigation.</div>
+      <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 4px;">
+        <input type="checkbox" id="enable-quicklook" checked style="accent-color: var(--vwsq-iris-500);" />
+        <span style="font-size: 13px; color: var(--vwsq-console-text-bright);">Enable Quick Look & Global Hotkeys</span>
+      </label>
+    </div>
+
+    <!-- Max Preview Size -->
+    <div class="vwsq-form-group">
+      <label class="vwsq-form-label" for="max-preview-size">Max Text/Code Preview Size (MB)</label>
+      <div class="vwsq-form-desc">Maximum file size to attempt inline text syntax highlighting.</div>
+      <input type="number" id="max-preview-size" class="vwsq-input" min="1" max="500" value="50" style="width: 140px;" />
+    </div>
+
+    <!-- Footer Actions -->
+    <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--vwsq-console-border, rgba(255,255,255,0.06)); padding-top: 20px;">
+      <span id="save-status" style="font-size: 12px; color: var(--vwsq-signal-online); display: none;">✓ Settings saved</span>
+      <button id="save-settings-btn" class="vwsq-btn vwsq-btn--primary" style="margin-left: auto;">
+        Save Preferences
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

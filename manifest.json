@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "browser-browser — Local Files Manager",
+  "version": "1.0.0",
+  "description": "Transform native Firefox local directory browsing (file:///) into a rich VaultSqwares Obsidian & Iris file manager with multi-format quick look, bookmarks, keyboard navigation, and Python-Zipper connectivity.",
+  "author": "VaultWares",
+  "icons": {
+    "16": "assets/icon-16.svg",
+    "32": "assets/icon-32.svg",
+    "48": "assets/icon-48.svg",
+    "128": "assets/icon-128.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "browser-browser@vaultwares.internal",
+      "strict_min_version": "109.0"
+    }
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "browser-browser",
+    "default_icon": {
+      "16": "assets/icon-16.svg",
+      "32": "assets/icon-32.svg",
+      "48": "assets/icon-48.svg"
+    }
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "scripts": ["src/background/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["file:///*"],
+      "js": ["src/content/content.js"],
+      "css": ["src/common/theme.css", "src/content/content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "contextMenus",
+    "downloads"
+  ],
+  "host_permissions": [
+    "file:///*",
+    "http://127.0.0.1:5171/*",
+    "http://localhost:5171/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/*",
+        "assets/icons/*",
+        "vaultwares-themes/*",
+        "vaultwares-themes/vaultsqware/*",
+        "src/*",
+        "src/app/*",
+        "src/common/*",
+        "src/content/*"
+      ],
+      "matches": ["<all_urls>", "file:///*"]
+    }
+  ]
+}

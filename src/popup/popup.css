@@ -1,0 +1,78 @@
+/* ==========================================================================
+   Extension Toolbar Action Popup Styles
+   ========================================================================== */
+
+body {
+  width: 320px;
+  margin: 0;
+  padding: 0;
+  background: var(--vwsq-console-surface, #11141b);
+  color: var(--vwsq-console-text, #bac2d2);
+  font-family: var(--vwsq-font-sans, "Inter", system-ui, sans-serif);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.vwsq-popup-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.vwsq-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--vwsq-console-raised, #191d27);
+  border-bottom: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+}
+
+.vwsq-popup-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vwsq-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.vwsq-popup-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--vwsq-console-raised, #191d27);
+  border: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+  border-radius: 8px;
+  color: var(--vwsq-console-text-bright, #e6eaf2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--vwsq-motion-snap, 90ms);
+}
+
+.vwsq-popup-btn svg {
+  width: 16px;
+  height: 16px;
+  color: var(--vwsq-iris-400, #8189f5);
+}
+
+.vwsq-popup-btn:hover {
+  background: var(--vwsq-console-hover, #1f2430);
+  border-color: var(--vwsq-iris-500, #6e7bf2);
+  transform: translateY(-1px);
+}
+
+.vwsq-popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--vwsq-console-sunken, #070810);
+  border-top: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+}
