@@ -167,10 +167,18 @@ export const ICONS = {
   </svg>`
 };
 
+import { getCatppuccinIcon, CATPPUCCIN_ICONS } from './catppuccinIcons.js';
+
+export { getCatppuccinIcon, CATPPUCCIN_ICONS };
+
 /**
- * Resolve the appropriate icon string based on file extension and directory status
+ * Resolve the appropriate icon string based on file extension, directory status, and theme
  */
-export function getFileIcon(filename, isDirectory = false, isParent = false) {
+export function getFileIcon(filename, isDirectory = false, isParent = false, iconTheme = 'catppuccin') {
+  if (iconTheme === 'catppuccin') {
+    return getCatppuccinIcon(filename, isDirectory, isParent);
+  }
+
   if (isParent) return ICONS.folderParent;
   if (isDirectory) return ICONS.folder;
 
@@ -211,3 +219,4 @@ export function getFileIcon(filename, isDirectory = false, isParent = false) {
 
   return ICONS.file;
 }
+

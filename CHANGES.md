@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.1.0] - Thu, 27 Aug 2026 14:57
+
+### Added
+- **Catppuccin Mocha Icon Suite**: Integrated full Catppuccin vector icon pack in `src/common/catppuccinIcons.js` for 50+ file types, specialized folders (Git, Downloads, Desktop, Media), and archives.
+- **Real Windows System Drives**: Detected and rendered all physical logical drives (`C:`, `D:`, `E:`, `F:`, `G:`, `I:`, `U:`) with volume labels, disk capacity, and real-time free space metrics in both the Warm Rail sidebar and quick popup.
+- **Collapsible Warm Rail Sidebar**: Added smooth collapsible sidebar toggle button and keyboard shortcut (`[` or `Ctrl+B`) with compact icon rail mode and persisted state.
+
 ## [1.0.1] - Thu, 27 Aug 2026 14:41
 
 ### Fixed

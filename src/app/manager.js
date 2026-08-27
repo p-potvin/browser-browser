@@ -28,11 +28,13 @@ export class AppManager {
     this.keybindings = null;
     this.currentDirHandle = null;
     this.dirStack = [];
+    this.sidebarCollapsed = false;
   }
 
   async init() {
     const settings = await getSettings();
     this.currentView = settings.defaultView || 'grid';
+    this.sidebarCollapsed = settings.sidebarCollapsed || false;
 
     this.bindEvents();
     await this.render();
@@ -313,6 +315,12 @@ export class AppManager {
       await SidebarComponent.render(sidebar, {
         currentUrl: this.currentPath,
         activeCategory: this.currentCategory,
+        isCollapsed: this.sidebarCollapsed,
+        onToggleCollapse: async (collapsed) => {
+          this.sidebarCollapsed = collapsed;
+          await saveSettings({ sidebarCollapsed: collapsed });
+          this.render();
+        },
         onNavigate: (url) => {
           this.loadFolder(url);
         },
@@ -456,6 +464,11 @@ export class AppManager {
             this.loadFolder(url.substring(0, lastSlash + 1));
           }
         }
+      },
+      onToggleSidebar: async () => {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        await saveSettings({ sidebarCollapsed: this.sidebarCollapsed });
+        this.render();
       },
       onFocusSearch: () => {
         const searchInput = document.querySelector('.vwsq-search-input');

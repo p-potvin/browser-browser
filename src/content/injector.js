@@ -26,6 +26,7 @@ export class DirectoryInjector {
     this.selectedIndex = 0;
     this.previewModal = new PreviewModal();
     this.keybindings = null;
+    this.sidebarCollapsed = false;
   }
 
   async init() {
@@ -36,6 +37,7 @@ export class DirectoryInjector {
     this.parsedData = FirefoxDirectoryParser.parse();
     const settings = await getSettings();
     this.currentView = settings.defaultView || 'grid';
+    this.sidebarCollapsed = settings.sidebarCollapsed || false;
 
     // Hide native body content cleanly
     document.body.style.display = 'none';
@@ -144,6 +146,12 @@ export class DirectoryInjector {
     await SidebarComponent.render(sidebar, {
       currentUrl: this.parsedData.currentUrl,
       activeCategory: this.currentCategory,
+      isCollapsed: this.sidebarCollapsed,
+      onToggleCollapse: async (collapsed) => {
+        this.sidebarCollapsed = collapsed;
+        await saveSettings({ sidebarCollapsed: collapsed });
+        this.render();
+      },
       onNavigate: (url) => { navigateTo(url); },
       onFilterCategory: (cat) => {
         this.currentCategory = cat;
@@ -264,6 +272,11 @@ export class DirectoryInjector {
             navigateTo(url.substring(0, lastSlash + 1));
           }
         }
+      },
+      onToggleSidebar: async () => {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        await saveSettings({ sidebarCollapsed: this.sidebarCollapsed });
+        this.render();
       },
       onFocusSearch: () => {
         const searchInput = document.querySelector('.vwsq-search-input');

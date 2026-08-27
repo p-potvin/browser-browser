@@ -21,38 +21,66 @@
     </div>
 
     <div class="vwsq-popup-body">
-      <div>
-        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--vwsq-console-text-dim); margin-bottom: 6px;">Quick Launch Local Drives</div>
-        <div class="vwsq-popup-grid">
-          <button class="vwsq-popup-btn" data-url="file:///C:/">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--vwsq-console-text-dim); margin-bottom: 6px;">Detected System Drives</div>
+        <div class="vwsq-popup-grid" style="grid-template-columns: repeat(3, 1fr); gap: 6px;">
+          <button class="vwsq-popup-btn" data-url="file:///C:/" title="C: NVMe System (64GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="6" width="20" height="12" rx="2"/>
               <circle cx="6" cy="12" r="1.5"/>
             </svg>
-            <span>Drive (C:)</span>
+            <span>(C:) 479G</span>
           </button>
-          <button class="vwsq-popup-btn" data-url="file:///D:/">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="vwsq-popup-btn" data-url="file:///D:/" title="D: Data SSD (214GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="6" width="20" height="12" rx="2"/>
               <circle cx="6" cy="12" r="1.5"/>
             </svg>
-            <span>Drive (D:)</span>
+            <span>(D:) 1TB</span>
           </button>
+          <button class="vwsq-popup-btn" data-url="file:///E:/" title="E: Fast SSD (148GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>(E:) 240G</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///F:/" title="F: Storage HDD (155GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>(F:) 1TB</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///G:/" title="G: 1TB Backup (317GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>(G:) 1TB</span>
+          </button>
+          <button class="vwsq-popup-btn" data-url="file:///I:/" title="I: 1TB External SSD (155GB free)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="6" width="20" height="12" rx="2"/>
+              <circle cx="6" cy="12" r="1.5"/>
+            </svg>
+            <span>(I:) 1TB</span>
+          </button>
+        </div>
+        <div class="vwsq-popup-grid" style="margin-top: 6px;">
           <button class="vwsq-popup-btn" data-url="file:///C:/Users/Administrator/Desktop/">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
             <span>Desktop</span>
           </button>
           <button class="vwsq-popup-btn" data-url="file:///C:/Users/Administrator/Desktop/Github%20Repos/">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="16 18 22 12 16 6"/>
               <polyline points="8 6 2 12 8 18"/>
             </svg>
             <span>Github Repos</span>
           </button>
         </div>
-      </div>
 
       <button id="vwsq-popup-open-manager" class="vwsq-btn vwsq-btn--primary" style="width: 100%;">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">

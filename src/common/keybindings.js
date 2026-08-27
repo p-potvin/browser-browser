@@ -123,8 +123,15 @@ export class KeybindingsController {
       return;
     }
 
-    // r -> Refresh
-    if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey) {
+    // [ or Ctrl+B -> Toggle Sidebar Collapse
+    if (e.key === '[' || (e.ctrlKey && e.key.toLowerCase() === 'b')) {
+      e.preventDefault();
+      if (this.handlers.onToggleSidebar) this.handlers.onToggleSidebar();
+      return;
+    }
+
+    // Refresh -> r
+    if (e.key === 'r' && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       if (this.handlers.onRefresh) this.handlers.onRefresh();
       return;
