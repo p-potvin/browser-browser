@@ -18,7 +18,7 @@ export class NavbarComponent {
     const bookmarked = await isBookmarked(currentUrl);
 
     // Resolving logo URL
-    let logoUrl = 'assets/logo.svg';
+    let logoUrl = '../../assets/logo.svg';
     if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getURL) {
       logoUrl = browser.runtime.getURL('assets/logo.svg');
     }
