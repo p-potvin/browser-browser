@@ -1,5 +1,5 @@
 /**
- * Warm Rail Sidebar Component with Real Windows Drives & Collapsible Mode
+ * Warm Rail Sidebar Component with Real Windows Drives, Collapsible Rail & Collapsible Sections
  */
 
 import { ICONS } from '../../common/icons.js';
@@ -29,6 +29,7 @@ export class SidebarComponent {
     const bookmarks = await getBookmarks();
     const settings = await getSettings();
     const collapsed = isCollapsed || settings.sidebarCollapsed || false;
+    const sections = settings.collapsedSections || { drives: false, bookmarks: false, categories: false, zipper: false };
 
     if (collapsed) {
       container.classList.add('collapsed');
@@ -37,7 +38,7 @@ export class SidebarComponent {
     }
 
     container.innerHTML = `
-      <!-- Sidebar Header / Collapse Toggle -->
+      <!-- Sidebar Header / Full Collapse Toggle -->
       <div style="display: flex; align-items: center; justify-content: ${collapsed ? 'center' : 'space-between'}; padding-bottom: 8px; border-bottom: 1px solid var(--vwsq-warm-border, rgba(15,17,22,0.1));">
         ${!collapsed ? `
           <div style="display: flex; align-items: center; gap: 6px;">
@@ -57,87 +58,109 @@ export class SidebarComponent {
       </div>
 
       <!-- Real Logical Drives Section -->
-      <div class="vwsq-sidebar-section">
-        ${!collapsed ? `<div class="vwsq-sidebar-heading">Physical Drives (${SYSTEM_DRIVES.length})</div>` : ''}
-        <div class="vwsq-sidebar-drives-list" style="display: flex; flex-direction: column; gap: 4px;">
-          ${SYSTEM_DRIVES.map(d => `
-            <button class="vwsq-drive-btn ${currentUrl.startsWith(d.url) ? 'active' : ''}" data-url="${escapeHtml(d.url)}" title="${escapeHtml(d.name)} (${d.free} free of ${d.size})">
-              <div style="width: 18px; height: 18px; flex-shrink: 0; color: var(--vwsq-iris-500);">${CATPPUCCIN_ICONS.drive}</div>
-              ${!collapsed ? `
-                <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; text-align: left;">
-                  <div style="font-size: 12.5px; font-weight: 600; color: var(--vwsq-warm-ink); display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                    <span>Drive (${d.letter})</span>
-                    <span style="font-size: 10.5px; font-family: var(--vwsq-font-mono); color: var(--vwsq-warm-ink-dim);">${d.free} free</span>
+      <div class="vwsq-sidebar-section ${sections.drives ? 'section-collapsed' : ''}" data-section="drives">
+        ${!collapsed ? `
+          <div class="vwsq-sidebar-heading vwsq-section-header" title="Click to collapse/expand drives">
+            <span class="vwsq-section-title">Physical Drives (${SYSTEM_DRIVES.length})</span>
+            <span class="vwsq-section-chevron">${sections.drives ? '▶' : '▼'}</span>
+          </div>
+        ` : ''}
+        <div class="vwsq-section-body" style="${sections.drives && !collapsed ? 'display: none;' : ''}">
+          <div class="vwsq-sidebar-drives-list" style="display: flex; flex-direction: column; gap: 4px;">
+            ${SYSTEM_DRIVES.map(d => `
+              <button class="vwsq-drive-btn ${currentUrl.startsWith(d.url) ? 'active' : ''}" data-url="${escapeHtml(d.url)}" title="${escapeHtml(d.name)} (${d.free} free of ${d.size})">
+                <div style="width: 18px; height: 18px; flex-shrink: 0; color: var(--vwsq-iris-500);">${CATPPUCCIN_ICONS.drive}</div>
+                ${!collapsed ? `
+                  <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; text-align: left;">
+                    <div style="font-size: 12.5px; font-weight: 600; color: var(--vwsq-warm-ink); display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                      <span>Drive (${d.letter})</span>
+                      <span style="font-size: 10.5px; font-family: var(--vwsq-font-mono); color: var(--vwsq-warm-ink-dim);">${d.free} free</span>
+                    </div>
+                    <div style="font-size: 10.5px; color: var(--vwsq-warm-ink-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;">${escapeHtml(d.name)}</div>
                   </div>
-                  <div style="font-size: 10.5px; color: var(--vwsq-warm-ink-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;">${escapeHtml(d.name)}</div>
-                </div>
-              ` : ''}
-            </button>
-          `).join('')}
+                ` : ''}
+              </button>
+            `).join('')}
+          </div>
         </div>
       </div>
 
       <!-- Pinned Bookmarks Section -->
-      <div class="vwsq-sidebar-section">
+      <div class="vwsq-sidebar-section ${sections.bookmarks ? 'section-collapsed' : ''}" data-section="bookmarks">
         ${!collapsed ? `
-          <div style="display: flex; align-items: center; justify-content: space-between; padding-right: 2px;">
-            <div class="vwsq-sidebar-heading" style="margin: 0;">Bookmarks</div>
-            <button class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-pin-current-btn" title="Pin Current Folder" style="padding: 2px 6px;">
-              <div style="width: 12px; height: 12px;">${ICONS.pin}</div>
-            </button>
+          <div class="vwsq-sidebar-heading vwsq-section-header" title="Click to collapse/expand bookmarks">
+            <span class="vwsq-section-title">Bookmarks (${bookmarks.length})</span>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-pin-current-btn" title="Pin Current Folder" style="padding: 2px 4px;">
+                <div style="width: 11px; height: 11px;">${ICONS.pin}</div>
+              </button>
+              <span class="vwsq-section-chevron">${sections.bookmarks ? '▶' : '▼'}</span>
+            </div>
           </div>
         ` : ''}
-        <div class="vwsq-bookmarks-list" style="display: flex; flex-direction: column; gap: 2px;">
-          ${bookmarks.map(bm => `
-            <div class="vwsq-sidebar-item ${currentUrl.startsWith(bm.url) ? 'active' : ''}" data-url="${escapeHtml(bm.url)}" title="${escapeHtml(bm.name)} (${escapeHtml(bm.url)})">
-              <div style="width: 18px; height: 18px; flex-shrink: 0;">${CATPPUCCIN_ICONS.folder}</div>
-              ${!collapsed ? `
-                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;">${escapeHtml(bm.name)}</span>
-                <button class="vwsq-btn vwsq-btn--ghost vwsq-remove-bookmark-btn" data-url="${escapeHtml(bm.url)}" style="padding: 2px; opacity: 0.4;" title="Unpin">
-                  <div style="width: 10px; height: 10px;">${ICONS.close}</div>
-                </button>
-              ` : ''}
-            </div>
-          `).join('')}
+        <div class="vwsq-section-body" style="${sections.bookmarks && !collapsed ? 'display: none;' : ''}">
+          <div class="vwsq-bookmarks-list" style="display: flex; flex-direction: column; gap: 2px;">
+            ${bookmarks.length === 0 && !collapsed ? `
+              <div style="font-size: 11px; color: var(--vwsq-warm-ink-dim); padding: 6px 10px; font-style: italic;">No pinned folders</div>
+            ` : ''}
+            ${bookmarks.map(bm => `
+              <div class="vwsq-sidebar-item ${currentUrl.startsWith(bm.url) ? 'active' : ''}" data-url="${escapeHtml(bm.url)}" title="${escapeHtml(bm.name)} (${escapeHtml(bm.url)})">
+                <div style="width: 18px; height: 18px; flex-shrink: 0;">${CATPPUCCIN_ICONS.folder}</div>
+                ${!collapsed ? `
+                  <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;">${escapeHtml(bm.name)}</span>
+                  <button class="vwsq-btn vwsq-btn--ghost vwsq-remove-bookmark-btn" data-url="${escapeHtml(bm.url)}" style="padding: 2px; opacity: 0.4;" title="Unpin">
+                    <div style="width: 10px; height: 10px;">${ICONS.close}</div>
+                  </button>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
         </div>
       </div>
 
-      <!-- Category Filter View -->
-      <div class="vwsq-sidebar-section">
-        ${!collapsed ? `<div class="vwsq-sidebar-heading">Filter Category</div>` : ''}
-        <div class="vwsq-sidebar-item ${activeCategory === 'all' ? 'active' : ''}" data-category="all" title="All Files">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${ICONS.grid}</div>
-          ${!collapsed ? `<span>All Items</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'directory' ? 'active' : ''}" data-category="directory" title="Folders Only">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.folder}</div>
-          ${!collapsed ? `<span>Folders Only</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'image' ? 'active' : ''}" data-category="image" title="Images">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.image}</div>
-          ${!collapsed ? `<span>Images</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'code' ? 'active' : ''}" data-category="code" title="Code">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.code}</div>
-          ${!collapsed ? `<span>Source Code</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'audio' ? 'active' : ''}" data-category="audio" title="Audio">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.audio}</div>
-          ${!collapsed ? `<span>Audio</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'video' ? 'active' : ''}" data-category="video" title="Video">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.video}</div>
-          ${!collapsed ? `<span>Video</span>` : ''}
-        </div>
-        <div class="vwsq-sidebar-item ${activeCategory === 'archive' ? 'active' : ''}" data-category="archive" title="Archives">
-          <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.archive}</div>
-          ${!collapsed ? `<span>Archives</span>` : ''}
+      <!-- Category Filter View Section -->
+      <div class="vwsq-sidebar-section ${sections.categories ? 'section-collapsed' : ''}" data-section="categories">
+        ${!collapsed ? `
+          <div class="vwsq-sidebar-heading vwsq-section-header" title="Click to collapse/expand filters">
+            <span class="vwsq-section-title">Filter Category</span>
+            <span class="vwsq-section-chevron">${sections.categories ? '▶' : '▼'}</span>
+          </div>
+        ` : ''}
+        <div class="vwsq-section-body" style="${sections.categories && !collapsed ? 'display: none;' : ''}">
+          <div class="vwsq-sidebar-item ${activeCategory === 'all' ? 'active' : ''}" data-category="all" title="All Files">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${ICONS.grid}</div>
+            ${!collapsed ? `<span>All Items</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'directory' ? 'active' : ''}" data-category="directory" title="Folders Only">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.folder}</div>
+            ${!collapsed ? `<span>Folders Only</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'image' ? 'active' : ''}" data-category="image" title="Images">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.image}</div>
+            ${!collapsed ? `<span>Images</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'code' ? 'active' : ''}" data-category="code" title="Code">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.code}</div>
+            ${!collapsed ? `<span>Source Code</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'audio' ? 'active' : ''}" data-category="audio" title="Audio">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.audio}</div>
+            ${!collapsed ? `<span>Audio</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'video' ? 'active' : ''}" data-category="video" title="Video">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.video}</div>
+            ${!collapsed ? `<span>Video</span>` : ''}
+          </div>
+          <div class="vwsq-sidebar-item ${activeCategory === 'archive' ? 'active' : ''}" data-category="archive" title="Archives">
+            <div style="width: 16px; height: 16px; flex-shrink: 0;">${CATPPUCCIN_ICONS.archive}</div>
+            ${!collapsed ? `<span>Archives</span>` : ''}
+          </div>
         </div>
       </div>
 
-      <!-- Python-Zipper Daemon Footer Status -->
+      <!-- Python-Zipper Daemon Footer Section -->
       <div class="vwsq-sidebar-section" style="margin-top: auto; padding-top: 12px; border-top: 1px solid var(--vwsq-warm-border, rgba(15,17,22,0.1));">
-        <div id="vwsq-sidebar-zipper-box" style="display: flex; align-items: center; justify-content: ${collapsed ? 'center' : 'space-between'}; padding: 8px 10px; background: var(--vwsq-warm-raised, #f8f7f4); border-radius: 8px; cursor: pointer;" title="Python-Zipper Daemon">
+        <div id="vwsq-sidebar-zipper-box" style="display: flex; align-items: center; justify-content: ${collapsed ? 'center' : 'space-between'}; padding: 8px 10px; background: var(--vwsq-warm-raised, #f8f7f4); border-radius: 8px; cursor: pointer;" title="Python-Zipper Daemon (127.0.0.1:5171)">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div style="width: 16px; height: 16px; color: var(--vwsq-coral-500, #ff8a6b); flex-shrink: 0;">${ICONS.zipper}</div>
             ${!collapsed ? `<span style="font-size: 12px; font-weight: 600;">Python-Zipper</span>` : ''}
@@ -147,7 +170,24 @@ export class SidebarComponent {
       </div>
     `;
 
-    // Collapse toggle button
+    // Section collapse click handlers
+    container.querySelectorAll('.vwsq-section-header').forEach(header => {
+      header.addEventListener('click', async (e) => {
+        if (e.target.closest('.vwsq-pin-current-btn')) return;
+        const sectionEl = header.closest('.vwsq-sidebar-section');
+        if (!sectionEl) return;
+        const sectionKey = sectionEl.dataset.section;
+        if (!sectionKey) return;
+
+        const currentSettings = await getSettings();
+        const currentSections = currentSettings.collapsedSections || { drives: false, bookmarks: false, categories: false, zipper: false };
+        currentSections[sectionKey] = !currentSections[sectionKey];
+        await saveSettings({ collapsedSections: currentSections });
+        SidebarComponent.render(container, options);
+      });
+    });
+
+    // Full sidebar collapse toggle button
     const toggleBtn = container.querySelector('#vwsq-sidebar-toggle-btn');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', async () => {
@@ -161,14 +201,14 @@ export class SidebarComponent {
       });
     }
 
-    // Drive click
+    // Drive clicks
     container.querySelectorAll('.vwsq-drive-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (onNavigate) onNavigate(btn.dataset.url);
       });
     });
 
-    // Bookmark click
+    // Bookmark clicks
     container.querySelectorAll('.vwsq-bookmarks-list .vwsq-sidebar-item').forEach(item => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.vwsq-remove-bookmark-btn')) return;

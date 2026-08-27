@@ -2,10 +2,51 @@
  * Background Service Worker / Script for browser-browser
  */
 
-// Global navigation & tab management message handlers
+/**
+ * Open dedicated manager tab or focus the most recently used existing one
+ */
+async function openOrFocusManager(pathParam = '') {
+  if (typeof browser === 'undefined' || !browser.tabs) return;
+
+  try {
+    const managerUrlBase = browser.runtime.getURL('src/app/manager.html');
+    const tabs = await browser.tabs.query({});
+    
+    // Find open manager tabs
+    const managerTabs = tabs.filter(t => t.url && t.url.startsWith(managerUrlBase));
+
+    if (managerTabs.length > 0) {
+      // Pick the last used / highest index tab
+      const targetTab = managerTabs[managerTabs.length - 1];
+      
+      // Update URL if path specified
+      if (pathParam) {
+        const fullUrl = `${managerUrlBase}?path=${encodeURIComponent(pathParam)}`;
+        await browser.tabs.update(targetTab.id, { active: true, url: fullUrl });
+      } else {
+        await browser.tabs.update(targetTab.id, { active: true });
+      }
+
+      if (targetTab.windowId && browser.windows) {
+        await browser.windows.update(targetTab.windowId, { focused: true });
+      }
+      return targetTab;
+    } else {
+      // Create new manager tab
+      const fullUrl = pathParam ? `${managerUrlBase}?path=${encodeURIComponent(pathParam)}` : managerUrlBase;
+      return await browser.tabs.create({ url: fullUrl });
+    }
+  } catch (err) {
+    console.error('Failed to open or focus manager:', err);
+  }
+}
+
+// Global navigation, directory fetch, & tab management message handlers
 if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessage) {
   browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message && message.action === 'navigate') {
+    if (!message) return;
+
+    if (message.action === 'navigate') {
       const targetTabId = (sender && sender.tab && sender.tab.id) ? sender.tab.id : undefined;
       
       if (targetTabId !== undefined) {
@@ -30,12 +71,30 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
             sendResponse({ success: false, error: err.message });
           });
       }
-      return true; // Keep asynchronous message channel open
+      return true;
     }
 
-    if (message && message.action === 'openTab') {
+    if (message.action === 'openTab') {
       browser.tabs.create({ url: message.url })
         .then(() => sendResponse({ success: true }))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'openManager') {
+      openOrFocusManager(message.path || '')
+        .then(() => sendResponse({ success: true }))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'fetchDirectory') {
+      fetch(message.url)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.text();
+        })
+        .then(html => sendResponse({ success: true, html }))
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
     }
@@ -71,8 +130,8 @@ if (typeof browser !== 'undefined' && browser.runtime) {
   if (browser.contextMenus && browser.contextMenus.onClicked) {
     browser.contextMenus.onClicked.addListener((info, tab) => {
       if (info.menuItemId === 'vwsq-open-manager') {
-        const url = browser.runtime.getURL('src/app/manager.html');
-        browser.tabs.create({ url });
+        const targetPath = tab && tab.url && tab.url.startsWith('file://') ? tab.url : '';
+        openOrFocusManager(targetPath);
       } else if (info.menuItemId === 'vwsq-send-zipper') {
         const targetUrl = info.linkUrl || info.srcUrl || info.pageUrl;
         if (targetUrl) {

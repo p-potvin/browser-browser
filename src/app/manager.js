@@ -12,6 +12,7 @@ import { ZipperWidget } from './components/zipperWidget.js';
 import { KeybindingsController } from '../common/keybindings.js';
 import { getSettings, saveSettings } from '../common/storage.js';
 import { getFileTypeCategory, formatBytes, formatDate, showToast, navigateTo } from '../common/utils.js';
+import { FirefoxDirectoryParser } from '../content/parser.js';
 
 export class AppManager {
   constructor() {
@@ -196,11 +197,51 @@ export class AppManager {
 
   async loadSampleItems() {
     await this.loadFolder('file:///C:/Users/Administrator/Desktop/Github%20Repos/');
-    showToast('Loaded local repositories workspace', 'success');
   }
 
   async loadFolder(folderUrl) {
     this.currentPath = folderUrl;
+
+    // 1. Attempt to fetch real directory listing via extension background script
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+      try {
+        const res = await browser.runtime.sendMessage({ action: 'fetchDirectory', url: folderUrl });
+        if (res && res.success && res.html) {
+          const parsed = FirefoxDirectoryParser.parseHtml(res.html, folderUrl);
+          if (parsed && parsed.items && parsed.items.length > 0) {
+            this.items = parsed.items;
+            this.applyFilters();
+            this.render();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Extension background fetchDirectory note:', err);
+      }
+    }
+
+    // 2. Direct fetch attempt
+    try {
+      const resp = await fetch(folderUrl);
+      if (resp.ok) {
+        const html = await resp.text();
+        const parsed = FirefoxDirectoryParser.parseHtml(html, folderUrl);
+        if (parsed && parsed.items && parsed.items.length > 0) {
+          this.items = parsed.items;
+          this.applyFilters();
+          this.render();
+          return;
+        }
+      }
+    } catch (e) {}
+
+    // 3. If in extension tab and fetch failed, navigate tab to real file:/// path
+    if (typeof browser !== 'undefined' && browser.runtime && folderUrl.startsWith('file:///')) {
+      navigateTo(folderUrl);
+      return;
+    }
+
+    // 4. Standalone browser test demo simulation
     let clean = folderUrl.replace(/file:\/\/\/?/, '').replace(/\/+$/, '');
     const parts = clean.split('/').filter(Boolean);
     const folderName = parts.length > 0 ? decodeURIComponent(parts[parts.length - 1]) : 'Root';
@@ -220,7 +261,7 @@ export class AppManager {
         { name: 'TOKENS.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/TOKENS.md', isDirectory: false, isParent: false, sizeFormatted: '4.8 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' },
         { name: 'COMPONENTS.md', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/vaultsqware/COMPONENTS.md', isDirectory: false, isParent: false, sizeFormatted: '2.2 KB', dateModified: formatDate(Date.now()), category: 'markdown', extension: 'md' }
       ];
-    } else if (folderName === 'Desktop' || folderName === 'C:' || folderName === 'C:') {
+    } else if (folderName === 'Desktop' || folderName === 'C:') {
       this.items = [
         { name: '..', url: 'file:///C:/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
         { name: 'Github Repos', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
@@ -234,7 +275,6 @@ export class AppManager {
         { name: 'installer.exe', url: 'file:///C:/Users/Administrator/Downloads/installer.exe', isDirectory: false, isParent: false, sizeFormatted: '45.2 MB', dateModified: formatDate(Date.now()), category: 'file', extension: 'exe' }
       ];
     } else {
-      // Default Github Repos view
       this.items = [
         { name: '..', url: 'file:///C:/Users/Administrator/Desktop/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
         { name: 'browser-browser', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },

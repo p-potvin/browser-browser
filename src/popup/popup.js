@@ -38,10 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Open full file manager tab
+  // Open or focus full file manager tab
   const openManagerBtn = document.getElementById('vwsq-popup-open-manager');
   if (openManagerBtn) {
-    openManagerBtn.addEventListener('click', () => {
+    openManagerBtn.addEventListener('click', async () => {
+      if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+        try {
+          await browser.runtime.sendMessage({ action: 'openManager' });
+          window.close();
+          return;
+        } catch (e) {}
+      }
+      
       let url = 'src/app/manager.html';
       if (typeof browser !== 'undefined' && browser.runtime) {
         url = browser.runtime.getURL('src/app/manager.html');

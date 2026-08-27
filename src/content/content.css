@@ -179,6 +179,37 @@
   color: var(--vwsq-warm-ink-dim, rgba(15, 17, 22, 0.42));
   padding: 4px 8px;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.vwsq-section-header {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all var(--vwsq-motion-snap, 90ms);
+}
+
+.vwsq-section-header:hover {
+  background: var(--vwsq-warm-raised, #f8f7f4);
+  color: var(--vwsq-warm-ink, #0f1116);
+}
+
+.vwsq-section-chevron {
+  font-size: 9px;
+  opacity: 0.5;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.vwsq-section-header:hover .vwsq-section-chevron {
+  opacity: 0.9;
+}
+
+.vwsq-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .vwsq-sidebar-item {
