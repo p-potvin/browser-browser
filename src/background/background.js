@@ -93,28 +93,139 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
       return true;
     }
 
-    if (message.action === 'checkZipperHealth') {
-      const start = performance.now();
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+    // Native Messaging Host Handlers
+    if (message.action === 'nativePing') {
+      callNativeHost({ action: 'ping', id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
 
-      fetch(`${message.baseUrl || 'http://127.0.0.1:5171'}/health`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal
-      })
-        .then(res => {
-          clearTimeout(timeoutId);
-          const latencyMs = Math.round(performance.now() - start);
-          sendResponse({ online: res.ok, latencyMs });
-        })
-        .catch(() => {
-          clearTimeout(timeoutId);
-          sendResponse({ online: false, latencyMs: null });
-        });
+    if (message.action === 'nativeGetDrives') {
+      callNativeHost({ action: 'get_drives', id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'nativeListDir') {
+      callNativeHost({ action: 'list_dir', path: message.path || '', id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'nativeOpenFile') {
+      callNativeHost({ action: 'open_file', path: message.path || '', id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'nativeReveal') {
+      callNativeHost({ action: 'reveal', path: message.path || '', id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    if (message.action === 'nativeSearch') {
+      callNativeHost({ action: 'search', query: message.query || '', maxResults: message.maxResults || 100, id: Date.now() })
+        .then(resp => sendResponse(resp))
+        .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
     }
   });
+}
+
+/**
+ * Persistent Native Messaging Connection Management
+ */
+let nativePort = null;
+const pendingNativeRequests = new Map(); // id -> { resolve, reject, timer }
+let nextNativeMsgId = 1;
+
+function getNativePort() {
+  if (nativePort) return nativePort;
+  if (typeof browser === 'undefined' || !browser.runtime || !browser.runtime.connectNative) {
+    return null;
+  }
+
+  try {
+    const port = browser.runtime.connectNative('browser_browser_host');
+    nativePort = port;
+
+    port.onMessage.addListener((msg) => {
+      if (msg && msg.id !== undefined && pendingNativeRequests.has(msg.id)) {
+        const req = pendingNativeRequests.get(msg.id);
+        clearTimeout(req.timer);
+        pendingNativeRequests.delete(msg.id);
+        req.resolve(msg);
+      }
+    });
+
+    port.onDisconnect.addListener((p) => {
+      const err = p && p.error ? p.error.message : 'Native host disconnected';
+      console.warn('[browser-browser] Native host port disconnected:', err);
+      nativePort = null;
+      for (const [id, req] of pendingNativeRequests) {
+        clearTimeout(req.timer);
+        req.reject(new Error(err));
+      }
+      pendingNativeRequests.clear();
+    });
+
+    return nativePort;
+  } catch (err) {
+    console.warn('[browser-browser] connectNative error:', err);
+    nativePort = null;
+    return null;
+  }
+}
+
+/**
+ * Send request to C++ Native Messaging Host (browser_browser_host)
+ * Uses persistent connectNative port to keep HTTP server alive continuously,
+ * falling back to sendNativeMessage if connectNative fails.
+ */
+async function callNativeHost(msg) {
+  const port = getNativePort();
+  if (port) {
+    return new Promise((resolve, reject) => {
+      const id = ++nextNativeMsgId;
+      msg.id = id;
+
+      const timer = setTimeout(() => {
+        if (pendingNativeRequests.has(id)) {
+          pendingNativeRequests.delete(id);
+          reject(new Error('Native message timeout'));
+        }
+      }, 15000);
+
+      pendingNativeRequests.set(id, { resolve, reject, timer });
+      try {
+        port.postMessage(msg);
+      } catch (err) {
+        clearTimeout(timer);
+        pendingNativeRequests.delete(id);
+        nativePort = null;
+        reject(err);
+      }
+    });
+  }
+
+  // Fallback if connectNative is unsupported
+  if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendNativeMessage) {
+    try {
+      const response = await browser.runtime.sendNativeMessage('browser_browser_host', msg);
+      return response;
+    } catch (err) {
+      console.warn('[browser-browser] sendNativeMessage fallback error:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  return { success: false, error: 'Native messaging not available' };
 }
 
 // Install / Startup Handler
@@ -130,12 +241,6 @@ if (typeof browser !== 'undefined' && browser.runtime) {
           title: 'Open in browser² Manager',
           contexts: ['all']
         });
-
-        browser.contextMenus.create({
-          id: 'vwsq-send-zipper',
-          title: 'Send Link to Python-Zipper',
-          contexts: ['link', 'image', 'video', 'audio']
-        });
       } catch (e) {
         console.warn('Context menu creation note:', e);
       }
@@ -148,15 +253,6 @@ if (typeof browser !== 'undefined' && browser.runtime) {
       if (info.menuItemId === 'vwsq-open-manager') {
         const targetPath = tab && tab.url && tab.url.startsWith('file://') ? tab.url : '';
         openOrFocusManager(targetPath);
-      } else if (info.menuItemId === 'vwsq-send-zipper') {
-        const targetUrl = info.linkUrl || info.srcUrl || info.pageUrl;
-        if (targetUrl) {
-          fetch('http://127.0.0.1:5171/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: targetUrl, links: [targetUrl], batch_size: 100 })
-          }).catch(err => console.error('Failed to send to zipper:', err));
-        }
       }
     });
   }

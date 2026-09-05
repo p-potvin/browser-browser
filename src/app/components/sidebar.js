@@ -31,6 +31,16 @@ export class SidebarComponent {
     const collapsed = isCollapsed || settings.sidebarCollapsed || false;
     const sections = settings.collapsedSections || { drives: false, bookmarks: false, categories: false, zipper: false };
 
+    const drivesList = (options.drives && options.drives.length > 0) ? options.drives.map(d => ({
+      letter: d.letter,
+      name: d.name,
+      size: d.total_formatted || d.size || '--',
+      free: d.free_formatted || d.free || '--',
+      type: d.type || 'Drive',
+      path: d.path || d.url || (d.letter + '\\'),
+      url: d.path || d.url || (d.letter + '\\')
+    })) : SYSTEM_DRIVES;
+
     if (collapsed) {
       container.classList.add('collapsed');
     } else {
@@ -61,14 +71,14 @@ export class SidebarComponent {
       <div class="vwsq-sidebar-section ${sections.drives ? 'section-collapsed' : ''}" data-section="drives">
         ${!collapsed ? `
           <div class="vwsq-sidebar-heading vwsq-section-header" title="Click to collapse/expand drives">
-            <span class="vwsq-section-title">Physical Drives (${SYSTEM_DRIVES.length})</span>
+            <span class="vwsq-section-title">Physical Drives (${drivesList.length})</span>
             <span class="vwsq-section-chevron">${sections.drives ? '▶' : '▼'}</span>
           </div>
         ` : ''}
         <div class="vwsq-section-body" style="${sections.drives && !collapsed ? 'display: none;' : ''}">
           <div class="vwsq-sidebar-drives-list" style="display: flex; flex-direction: column; gap: 4px;">
-            ${SYSTEM_DRIVES.map(d => `
-              <button class="vwsq-drive-btn ${currentUrl.startsWith(d.url) ? 'active' : ''}" data-url="${escapeHtml(d.url)}" title="${escapeHtml(d.name)} (${d.free} free of ${d.size})">
+            ${drivesList.map(d => `
+              <button class="vwsq-drive-btn ${currentUrl.startsWith(d.path) || currentUrl.startsWith(d.url) ? 'active' : ''}" data-path="${escapeHtml(d.path)}" data-url="${escapeHtml(d.url)}" title="${escapeHtml(d.name)} (${d.free} free of ${d.size})">
                 <div style="width: 18px; height: 18px; flex-shrink: 0; color: var(--vwsq-iris-500);">${CATPPUCCIN_ICONS.drive}</div>
                 ${!collapsed ? `
                   <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; text-align: left;">
@@ -92,7 +102,7 @@ export class SidebarComponent {
             <span class="vwsq-section-title">Bookmarks (${bookmarks.length})</span>
             <div style="display: flex; align-items: center; gap: 4px;">
               <button class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-pin-current-btn" title="Pin Current Folder" style="padding: 2px 4px;">
-                <div style="width: 11px; height: 11px;">${ICONS.pin}</div>
+                <div style="width: 12px; height: 12px;">${ICONS.bookmark}</div>
               </button>
               <span class="vwsq-section-chevron">${sections.bookmarks ? '▶' : '▼'}</span>
             </div>
@@ -157,17 +167,6 @@ export class SidebarComponent {
           </div>
         </div>
       </div>
-
-      <!-- Python-Zipper Daemon Footer Section -->
-      <div class="vwsq-sidebar-section" style="margin-top: auto; padding-top: 12px; border-top: 1px solid var(--vwsq-warm-border, rgba(15,17,22,0.1));">
-        <div id="vwsq-sidebar-zipper-box" style="display: flex; align-items: center; justify-content: ${collapsed ? 'center' : 'space-between'}; padding: 8px 10px; background: var(--vwsq-warm-raised, #f8f7f4); border-radius: 8px; cursor: pointer;" title="Python-Zipper Daemon (127.0.0.1:5171)">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 16px; height: 16px; color: var(--vwsq-coral-500, #ff8a6b); flex-shrink: 0;">${ICONS.zipper}</div>
-            ${!collapsed ? `<span style="font-size: 12px; font-weight: 600;">Python-Zipper</span>` : ''}
-          </div>
-          <span id="vwsq-sidebar-zipper-led" class="vwsq-led vwsq-led--online vwsq-led--live"></span>
-        </div>
-      </div>
     `;
 
     // Section collapse click handlers
@@ -204,7 +203,7 @@ export class SidebarComponent {
     // Drive clicks
     container.querySelectorAll('.vwsq-drive-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (onNavigate) onNavigate(btn.dataset.url);
+        if (onNavigate) onNavigate(btn.dataset.path || btn.dataset.url);
       });
     });
 

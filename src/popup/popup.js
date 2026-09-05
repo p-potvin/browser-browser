@@ -2,26 +2,7 @@
  * Toolbar Action Popup Controller
  */
 
-import { zipperClient } from '../services/pythonZipperClient.js';
-
-document.addEventListener('DOMContentLoaded', async () => {
-  // Zipper status
-  zipperClient.init();
-  zipperClient.subscribe(({ status, latencyMs }) => {
-    const badge = document.getElementById('vwsq-popup-zipper-led');
-    const text = document.getElementById('vwsq-popup-zipper-text');
-    if (!badge || !text) return;
-
-    if (status === 'online') {
-      badge.className = 'vwsq-badge vwsq-badge--online';
-      badge.querySelector('.vwsq-led').className = 'vwsq-led vwsq-led--online vwsq-led--live';
-      text.textContent = latencyMs ? `ZIPPER ${latencyMs}ms` : 'ONLINE';
-    } else {
-      badge.className = 'vwsq-badge vwsq-badge--alert';
-      badge.querySelector('.vwsq-led').className = 'vwsq-led vwsq-led--alert';
-      text.textContent = 'OFFLINE';
-    }
-  });
+document.addEventListener('DOMContentLoaded', () => {
 
   // Open drive/location buttons
   document.querySelectorAll('.vwsq-popup-btn').forEach(btn => {

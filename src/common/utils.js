@@ -247,9 +247,14 @@ export async function navigateTo(url, options = {}) {
   }
 
   // 3. If navigating to a file:/// URL:
-  // In Firefox, background tabs.update on file:/// is blocked with 'Illegal URL' error,
-  // so direct anchor click / window.location is the standard and supported method
+  // In Firefox extension tabs (moz-extension://), direct file:/// navigation is blocked by browser sandbox.
   if (url.startsWith('file://')) {
+    if (typeof window !== 'undefined' && window.location && window.location.protocol.includes('-extension:')) {
+      await copyToClipboard(url);
+      showToast(`Path copied to clipboard! Paste into Firefox address bar or click "Open Local Folder": ${url}`, 'info', 4000);
+      return;
+    }
+
     try {
       const a = document.createElement('a');
       a.href = url;
@@ -279,5 +284,37 @@ export async function navigateTo(url, options = {}) {
 if (typeof window !== 'undefined') {
   window.navigateTo = navigateTo;
 }
+
+/**
+ * Convert simple glob pattern (e.g. *.nfo, .thumbs, node_modules) to RegExp
+ * @param {string} glob 
+ * @returns {RegExp}
+ */
+export function globToRegex(glob) {
+  const g = (glob || '').trim();
+  if (!g) return null;
+  const escaped = g
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+/**
+ * Check if a string matches any pattern in a glob list
+ * @param {string} str 
+ * @param {Array<string>} globs 
+ * @returns {boolean}
+ */
+export function matchesAnyGlob(str, globs = []) {
+  if (!str || !globs || globs.length === 0) return false;
+  for (const g of globs) {
+    if (!g || !g.trim()) continue;
+    const re = globToRegex(g);
+    if (re && re.test(str)) return true;
+  }
+  return false;
+}
+
 
 

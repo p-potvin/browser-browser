@@ -101,12 +101,35 @@ export const ICONS = {
     <line x1="3" y1="18" x2="3.01" y2="18"/>
   </svg>`,
 
-  pin: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 17v5M9 2l7 7-3 3 5 5-2 2-5-5-3 3-7-7 2-2 3 3 3-3z"/>
+  bookmark: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
   </svg>`,
 
-  pinFilled: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 17v5M9 2l7 7-3 3 5 5-2 2-5-5-3 3-7-7 2-2 3 3 3-3z" fill="var(--vwsq-coral-500, #ff8a6b)"/>
+  bookmarkFilled: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="var(--vwsq-coral-500, #ff8a6b)" stroke="var(--vwsq-coral-500, #ff8a6b)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+  </svg>`,
+
+  pin: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+  </svg>`,
+
+  pinFilled: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="var(--vwsq-coral-500, #ff8a6b)" stroke="var(--vwsq-coral-500, #ff8a6b)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+  </svg>`,
+
+  arrowLeft: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 19-7-7 7-7"/>
+    <path d="M19 12H5"/>
+  </svg>`,
+
+  arrowRight: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 12h14"/>
+    <path d="m12 5 7 7-7 7"/>
+  </svg>`,
+
+  arrowUp: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m5 12 7-7 7 7"/>
+    <path d="M12 19V5"/>
   </svg>`,
 
   copy: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -128,13 +151,6 @@ export const ICONS = {
   settings: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg>`,
-
-  zipper: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="4" y="2" width="16" height="20" rx="3" fill="var(--vwsq-coral-soft, rgba(255, 138, 107, 0.14))" stroke="var(--vwsq-coral-500, #ff8a6b)"/>
-    <line x1="12" y1="2" x2="12" y2="10" stroke="var(--vwsq-coral-400, #ff9679)" stroke-dasharray="2 1"/>
-    <rect x="10" y="8" width="4" height="6" rx="1" fill="var(--vwsq-coral-500, #ff8a6b)"/>
-    <circle cx="12" cy="18" r="1.5" fill="var(--vwsq-signal-online, #56d98d)"/>
   </svg>`,
 
   close: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -164,6 +180,35 @@ export const ICONS = {
   eye: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
     <circle cx="12" cy="12" r="3"/>
+  </svg>`,
+
+  info: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="16" x2="12" y2="12"/>
+    <line x1="12" y1="8" x2="12.01" y2="8"/>
+  </svg>`,
+
+  sort: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m3 16 4 4 4-4"/>
+    <path d="M7 20V4"/>
+    <path d="m21 8-4-4-4 4"/>
+    <path d="M17 4v16"/>
+  </svg>`,
+
+  sortAsc: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m3 8 4-4 4 4"/>
+    <path d="M7 4v16"/>
+    <path d="M11 12h4"/>
+    <path d="M11 16h7"/>
+    <path d="M11 20h10"/>
+  </svg>`,
+
+  sortDesc: `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m3 16 4 4 4-4"/>
+    <path d="M7 20V4"/>
+    <path d="M11 4h10"/>
+    <path d="M11 8h7"/>
+    <path d="M11 12h4"/>
   </svg>`
 };
 
