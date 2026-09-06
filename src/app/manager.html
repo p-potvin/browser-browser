@@ -13,16 +13,69 @@
   <div id="vwsq-app" class="vwsq-app-shell">
     <header id="vwsq-topbar" class="vwsq-topbar"></header>
     <div id="vwsq-tabs-bar" class="vwsq-tabs-bar">
-      <div class="vwsq-tab active" id="vwsq-tab-main">
-        <div style="width: 14px; height: 14px;">
+      <div class="vwsq-tab active" id="vwsq-tab-main" title="Active Workspace">
+        <div style="width: 15px; height: 15px; flex-shrink: 0;">
           <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-        <span class="vwsq-tab-title">Local Workspace</span>
+        <span class="vwsq-tab-title" id="vwsq-tab-title">Local Workspace</span>
       </div>
-      <button class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-open-folder-btn" style="padding: 4px 8px;" title="Open Local Folder">
-        <span>+ Open Folder</span>
+
+      <!-- Navigation History & Parent Directory Buttons -->
+      <div class="vwsq-nav-controls">
+        <button id="vwsq-nav-back" class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-nav-btn" title="Back (Alt+Left)" disabled>
+          <div style="width: 14px; height: 14px;">
+            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
+            </svg>
+          </div>
+        </button>
+        <button id="vwsq-nav-forward" class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-nav-btn" title="Forward (Alt+Right)" disabled>
+          <div style="width: 14px; height: 14px;">
+            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+        <button id="vwsq-nav-up" class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-nav-btn" title="Up to Parent Directory (Alt+Up)">
+          <div style="width: 14px; height: 14px;">
+            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>
+            </svg>
+          </div>
+        </button>
+        <button id="vwsq-nav-refresh" class="vwsq-btn vwsq-btn--sm vwsq-btn--ghost vwsq-nav-btn" title="Refresh Directory (r)">
+          <div style="width: 14px; height: 14px;">
+            <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <!-- Prominent Address Input taking up all available space -->
+      <div class="vwsq-address-wrapper">
+        <div class="vwsq-address-icon">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <input type="text" id="vwsq-address-input" class="vwsq-address-input" placeholder="Type or paste folder path (e.g. C:\Users\... or /subfolder) and press Enter" spellcheck="false" autocomplete="off" />
+        <button id="vwsq-address-go-btn" class="vwsq-address-go-btn" title="Go to path (Enter)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Bumped "Open Local Folder" button to this row -->
+      <button class="vwsq-btn vwsq-btn--sm vwsq-btn--primary vwsq-open-folder-btn" id="vwsq-top-open-btn" style="flex-shrink: 0;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Open Local Folder</span>
       </button>
       <input type="file" id="vwsq-folder-input" webkitdirectory directory multiple style="display: none;" />
     </div>
@@ -30,14 +83,6 @@
     <div class="vwsq-body">
       <aside id="vwsq-sidebar" class="vwsq-warm-rail-sidebar"></aside>
       <main class="vwsq-main-content">
-        <div class="vwsq-toolbar">
-          <div id="vwsq-stats" class="vwsq-stats">Select or open a local folder to begin</div>
-          <div style="display: flex; gap: 8px;">
-            <button class="vwsq-btn vwsq-btn--sm vwsq-btn--primary vwsq-open-folder-btn">
-              <span>Open Local Folder</span>
-            </button>
-          </div>
-        </div>
         <div id="vwsq-file-container" class="vwsq-file-container">
           <div class="vwsq-empty-workspace">
             <div class="vwsq-dropzone" id="vwsq-dropzone">
@@ -49,7 +94,7 @@
               <div>
                 <h3 style="font-size: 18px; margin-bottom: 6px;">Open Local Folder or Drag & Drop Here</h3>
                 <p style="font-size: 13px; color: var(--vwsq-console-text-dim);">
-                  Browse local directories with instant multi-format preview, search, and Python-Zipper connectivity.
+                  Browse local directories with instant multi-format preview, search, and thumbnail previews.
                 </p>
               </div>
               <div style="display: flex; gap: 12px; margin-top: 8px;">
@@ -65,8 +110,21 @@
         </div>
       </main>
     </div>
+
+    <!-- Windows Explorer-style Bottom Status Bar -->
+    <footer id="vwsq-status-bar" class="vwsq-status-bar">
+      <div class="vwsq-status-section" id="vwsq-status-left">
+        <span id="vwsq-status-item-count">0 items</span>
+      </div>
+      <div class="vwsq-status-section" id="vwsq-status-selection" style="display: none;">
+        <span id="vwsq-status-selected-info">1 item selected</span>
+      </div>
+      <div class="vwsq-status-section vwsq-status-right" id="vwsq-status-right">
+        <span id="vwsq-status-summary">Ready</span>
+      </div>
+    </footer>
   </div>
 
-  <script type="module" src="manager.js?v=1.0.1"></script>
+  <script type="module" src="manager.js?v=1.1.0"></script>
 </body>
 </html>

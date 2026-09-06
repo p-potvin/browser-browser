@@ -13,7 +13,7 @@ export class FileTableView {
    * @param {Object} options
    */
   static render(container, items, options = {}) {
-    const { onOpenItem, onQuickLook, selectedIndex = -1, onSort, sortField = 'name', sortAsc = true } = options;
+    const { onOpenItem, onQuickLook, onSort, sortField = 'name', sortAsc = true, selectedIndex = -1, onContextMenu } = options;
     container.innerHTML = '';
 
     const table = document.createElement('table');
@@ -101,6 +101,10 @@ export class FileTableView {
         }
 
         if (onOpenItem) onOpenItem(item);
+      });
+
+      tr.addEventListener('contextmenu', (e) => {
+        if (onContextMenu) onContextMenu(e, item);
       });
 
       tbody.appendChild(tr);

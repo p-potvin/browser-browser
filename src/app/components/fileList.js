@@ -13,7 +13,7 @@ export class FileListView {
    * @param {Object} options
    */
   static render(container, items, options = {}) {
-    const { onOpenItem, onQuickLook, selectedIndex = -1 } = options;
+    const { onOpenItem, onQuickLook, selectedIndex = -1, onContextMenu } = options;
     container.innerHTML = '';
 
     const list = document.createElement('div');
@@ -57,6 +57,10 @@ export class FileListView {
         }
 
         if (onOpenItem) onOpenItem(item);
+      });
+
+      row.addEventListener('contextmenu', (e) => {
+        if (onContextMenu) onContextMenu(e, item);
       });
 
       list.appendChild(row);

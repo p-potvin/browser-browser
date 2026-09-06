@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.3.1] - Sat, 05 Sep 2026 07:51
+
+### Fixed
+- **Persistent Native Messaging Connection**: Resolved video playback and thumbnail streaming regressions where `sendNativeMessage` terminated host processes after each request. Switched to persistent `connectNative` connection in `background.js`, keeping the native host and its local HTTP streaming server alive continuously.
+- **Unsupported Video Container / Codec Fallback**: Added graceful error handling in `previewModal.js` when Firefox HTML5 player encounters unsupported video codecs (MKV/AVI/AC3/DTS), displaying an intuitive fallback card with direct "Open in Default Player" and "Reveal in Explorer" buttons.
+- **Everything Search Directory Batch Sizing**: Fixed folder listing slowness caused by sequential Win32 `WM_COPYDATA` IPC calls. Implemented a single `parent:"<dir>"` batch search query in `everything_client.cpp`, fetching all immediate subfolder sizes in 1 IPC roundtrip (< 5ms) instead of N blocking roundtrips.
+- **In-Memory Thumbnail Pre-indexing**: Enhanced `.thumbs` scanning into an in-memory hash set, matching both `${stem}.jpg/.webm` and `${filename}.jpg/.webm`, `.png`, and `.webp`.
+
+### Added
+- **Top Bar Sorting Controls**: Added interactive sorting dropdown (Name, Date Modified, Size, Type) and Ascending/Descending direction toggle in `navbar.js` with instant re-sorting.
+- **In-App Preferences & Glob Exclusions Modal**: Created `settingsModal.js` supporting custom folder glob exclusions (`.thumbs`, `.git`, `node_modules`, etc.), file glob exclusions (`*.nfo`, `*.srt`, `*.vsmeta`, etc.), and sidecar toggles.
+- **Contextual Right-Click Menu**: Created `contextMenu.js` for files and folders with Open, Open in Default App, Reveal in File Explorer, Copy Full Path, and Properties.
+- **File Properties & Sidecar Inspector**: Created `propertiesModal.js` providing full file metadata inspection and live reading of associated `.nfo`, `.json`, `.srt`, and `.vsmeta` sidecar files with syntax highlighting.
+
+## [1.3.0] - Fri, 04 Sep 2026 17:05
+
+### Added
+- **C++20 Native Messaging Host (`native-host/`)**: High-performance modular C++ host connecting the WebExtension directly to Windows APIs via stdio binary framing. Structured for direct future integration with `ggml` / `llama.cpp` for local inference.
+- **Unrestricted Disk & Drive Access**: Direct Win32 integration (`GetLogicalDriveStringsW`, `GetDiskFreeSpaceExW`, `GetVolumeInformationW`) discovering all system drives and their real-time free/total capacity with zero browser upload prompts.
+- **Everything Search IPC Integration**: Connects directly to Everything Search via Windows IPC message window to query instant directory sizes indexed with `index_folder_size=1`.
+- **Winsock HTTP Streaming Server (`127.0.0.1:45123`)**: Multithreaded HTTP server with full HTTP Range request support (`206 Partial Content`), allowing high-definition video seeking, scrubbing, and audio playback directly in Firefox without loading files into memory or hitting `moz-extension://` security limits.
+- **Host Registration Scripts**: Added `register-host.ps1` and `unregister-host.ps1` to configure `HKCU\Software\Mozilla\NativeMessagingHosts\browser_browser_host`.
+- **Automated Native Verification Suite**: Added `tests/verify-native-host.ps1` for real-condition testing of registry persistence, stdio messaging, drive enumeration, directory traversal, and HTTP Range streaming.
+
+### Fixed
+- **Video Player Modal Header Overflow**: Fixed long filenames overflowing header boundaries and pushing navigation controls offscreen; resolved counter wrapping into 3 lines by setting `flex-shrink: 0`, `white-space: nowrap`, and proper ellipsis truncation.
+
+## [1.2.0] - Fri, 04 Sep 2026 09:15
+
+### Added
+- **Hierarchical Virtual File System (`vfs.js`)**: Full in-memory directory tree parser from `FileList` (webkitdirectory/drag-and-drop). Enables deep folder traversal, subfolder opening, parent directory navigation (`..`), and typed path resolution.
+- **`.thumbs` Previews & Hover WebM Audio**: Automatically detects `.thumbs` directories, maps base filenames to static `.jpg` and `.webm` video previews, and plays WebM previews with audio on hover.
+- **Windows Explorer-Style Badges**: Displays tiny Catppuccin file type icon badges overlaying the bottom-right corner of thumbnail previews.
+- **Windows Explorer-Style Address Bar & Navigation**: Prominent full-width address bar on the top row alongside "Local Workspace" supporting path pasting/typing and Enter navigation; Back (`←`), Forward (`→`), Up (`↑`), and Refresh (`↻`) navigation controls with full history stack.
+- **Bottom Status Bar**: Windows Explorer-style status bar reporting item count, folder/file metrics, and active selection details.
+- **Lucide Bookmark Icons**: Replaced distorted pushpin icons with crisp Lucide bookmark vector icons.
+
+### Removed
+- **Python-Zipper Connectivity**: Completely purged `pythonZipperClient.js`, `zipperWidget.js`, health check background polling, context menus, and zipper manifest permissions (`http://127.0.0.1:5171/*`).
+
+### Performance
+- **Instant Popup Open**: Removed blocking zipper daemon health check timeout from toolbar popup; popup now renders detected system drives instantly (< 10ms).
+
 ## [1.1.1] - Thu, 27 Aug 2026 15:13
 
 ### Fixed

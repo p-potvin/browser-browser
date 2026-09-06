@@ -4,14 +4,18 @@
  */
 
 const DEFAULT_SETTINGS = {
-  zipperUrl: 'http://127.0.0.1:5171',
   defaultView: 'grid', // 'grid' | 'table' | 'list'
   showHiddenFiles: true,
   enableQuickLook: true,
   enablePreviewThumbnails: true,
   maxPreviewSizeBytes: 50 * 1024 * 1024, // 50MB
   themeVariant: 'vaultsqware',
-  customDrives: ['C:', 'D:', 'E:', 'Z:']
+  customDrives: ['C:', 'D:', 'E:', 'Z:'],
+  folderExclusions: ['.thumbs', '.git', 'node_modules', '$RECYCLE.BIN', 'System Volume Information'],
+  fileExclusions: ['*.nfo', '*.vsmeta', '*.json.sidecar', '*.srt', '*.sub', '*.idx'],
+  hideSidecars: true,
+  sortField: 'name',
+  sortAsc: true
 };
 
 /**
@@ -96,8 +100,7 @@ export async function getBookmarks() {
     return res.bookmarks || [
       { name: 'Desktop', url: 'file:///C:/Users/Administrator/Desktop/', icon: 'drive' },
       { name: 'Downloads', url: 'file:///C:/Users/Administrator/Downloads/', icon: 'download' },
-      { name: 'Github Repos', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/', icon: 'code' },
-      { name: 'Python-Zipper Downloaded', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/python-zipper/.downloaded/', icon: 'zipper' }
+      { name: 'Github Repos', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/', icon: 'code' }
     ];
   } catch (err) {
     console.error('Error fetching bookmarks:', err);

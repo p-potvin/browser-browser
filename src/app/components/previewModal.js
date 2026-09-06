@@ -7,7 +7,6 @@ import { escapeHtml, formatBytes, copyToClipboard, showToast } from '../../commo
 import { CodeViewer } from './codeViewer.js';
 import { MarkdownViewer } from './markdownViewer.js';
 import { AudioPlayerComponent } from './audioPlayer.js';
-import { zipperClient } from '../../services/pythonZipperClient.js';
 
 export class PreviewModal {
   constructor() {
@@ -77,16 +76,16 @@ export class PreviewModal {
     const header = document.createElement('div');
     header.className = 'vwsq-modal-header';
     header.innerHTML = `
-      <div class="vwsq-modal-title">
-        <div style="width: 22px; height: 22px; display: flex; align-items: center;">${getFileIcon(item.name, item.isDirectory)}</div>
-        <span>${escapeHtml(item.name)}</span>
-        <span class="vwsq-badge vwsq-badge--iris">${escapeHtml(item.extension ? item.extension.toUpperCase() : 'FILE')}</span>
+      <div class="vwsq-modal-title" style="min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; overflow: hidden; margin-right: 16px;">
+        <div style="width: 22px; height: 22px; display: flex; align-items: center; flex-shrink: 0;">${getFileIcon(item.name, item.isDirectory)}</div>
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600;">${escapeHtml(item.name)}</span>
+        <span class="vwsq-badge vwsq-badge--iris" style="flex-shrink: 0;">${escapeHtml(item.extension ? item.extension.toUpperCase() : 'FILE')}</span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="vwsq-modal-nav-controls" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
         <button class="vwsq-btn vwsq-btn--ghost vwsq-modal-prev-btn" title="Previous item" ${this.currentIndex <= 0 ? 'disabled style="opacity: 0.3;"' : ''}>←</button>
-        <span style="font-size: 11px; font-family: var(--vwsq-font-mono); color: var(--vwsq-console-text-dim);">${this.currentIndex + 1} / ${this.items.length || 1}</span>
+        <span class="vwsq-modal-counter" style="font-size: 12px; font-family: var(--vwsq-font-mono); color: var(--vwsq-console-text-dim); white-space: nowrap; flex-shrink: 0; min-width: 48px; text-align: center; line-height: 1;">${this.currentIndex + 1} / ${this.items.length || 1}</span>
         <button class="vwsq-btn vwsq-btn--ghost vwsq-modal-next-btn" title="Next item" ${this.currentIndex >= this.items.length - 1 ? 'disabled style="opacity: 0.3;"' : ''}>→</button>
-        <button class="vwsq-btn vwsq-btn--ghost vwsq-modal-close-btn" style="padding: 6px;">
+        <button class="vwsq-btn vwsq-btn--ghost vwsq-modal-close-btn" style="padding: 6px;" title="Close (Escape)">
           <div style="width: 16px; height: 16px;">${ICONS.close}</div>
         </button>
       </div>
@@ -110,10 +109,6 @@ export class PreviewModal {
         <button class="vwsq-btn vwsq-btn--sm vwsq-btn-copy-path">
           <div style="width: 14px; height: 14px;">${ICONS.copy}</div>
           <span>Copy Path</span>
-        </button>
-        <button class="vwsq-btn vwsq-btn--sm vwsq-btn-send-zipper" title="Send to Python-Zipper">
-          <div style="width: 14px; height: 14px;">${ICONS.zipper}</div>
-          <span>Send to Zipper</span>
         </button>
         <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="vwsq-btn vwsq-btn--sm vwsq-btn--primary">
           <div style="width: 14px; height: 14px;">${ICONS.external}</div>
@@ -146,26 +141,18 @@ export class PreviewModal {
       if (ok) showToast('File path copied to clipboard', 'success');
     });
 
-    footer.querySelector('.vwsq-btn-send-zipper').addEventListener('click', async () => {
-      try {
-        await zipperClient.queueDownload(item.url, [item.url]);
-        showToast('Sent to Python-Zipper queue', 'success');
-      } catch (err) {
-        showToast('Failed to connect to Python-Zipper', 'error');
-      }
-    });
-
     // Render file content into body based on category
     this.loadContent(item, body);
   }
 
   async loadContent(item, bodyEl) {
     const cat = item.category;
+    const mediaSrc = item.streamUrl || item.url;
 
     if (cat === 'image') {
       bodyEl.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
-          <img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.name)}" class="vwsq-preview-image" />
+          <img src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(item.name)}" class="vwsq-preview-image" />
           <span class="vwsq-badge vwsq-badge--online">High-Resolution Image Preview</span>
         </div>
       `;
@@ -174,28 +161,73 @@ export class PreviewModal {
 
     if (cat === 'video') {
       bodyEl.innerHTML = `
-        <video src="${escapeHtml(item.url)}" controls autoplay class="vwsq-preview-video"></video>
+        <div class="vwsq-video-container" style="position: relative; width: 100%; display: flex; justify-content: center; align-items: center;">
+          <video src="${escapeHtml(mediaSrc)}" controls autoplay class="vwsq-preview-video" style="max-height: 65vh; border-radius: 8px;"></video>
+          <div class="vwsq-video-error-fallback" style="display: none; flex-direction: column; align-items: center; gap: 14px; padding: 36px 24px; text-align: center; background: rgba(0,0,0,0.35); border-radius: 12px; border: 1px dashed var(--vwsq-console-border, rgba(255,255,255,0.1));">
+            <div style="font-size: 32px; opacity: 0.85;">🎬</div>
+            <div style="font-weight: 600; font-size: 15px; color: var(--vwsq-console-text-bright);">${escapeHtml(item.name)}</div>
+            <div style="font-size: 13px; color: var(--vwsq-console-text-dim); max-width: 440px; line-height: 1.4;">
+              This video container or codec (e.g. MKV, AVI, AC3/DTS audio) is not natively playable in Firefox's HTML5 video decoder.
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+              <button class="vwsq-btn vwsq-btn--primary vwsq-open-default-btn">
+                <span>Open in Default Player</span>
+              </button>
+              <button class="vwsq-btn vwsq-btn--ghost vwsq-reveal-btn">
+                <span>Reveal in Explorer</span>
+              </button>
+            </div>
+          </div>
+        </div>
       `;
+
+      const video = bodyEl.querySelector('video');
+      const fallback = bodyEl.querySelector('.vwsq-video-error-fallback');
+      const openBtn = bodyEl.querySelector('.vwsq-open-default-btn');
+      const revealBtn = bodyEl.querySelector('.vwsq-reveal-btn');
+
+      if (video && fallback) {
+        video.onerror = () => {
+          video.style.display = 'none';
+          fallback.style.display = 'flex';
+        };
+      }
+
+      if (openBtn) {
+        openBtn.addEventListener('click', async () => {
+          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+            await browser.runtime.sendMessage({ action: 'nativeOpenFile', path: item.path || item.url });
+          }
+        });
+      }
+
+      if (revealBtn) {
+        revealBtn.addEventListener('click', async () => {
+          if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+            await browser.runtime.sendMessage({ action: 'nativeReveal', path: item.path || item.url });
+          }
+        });
+      }
       return;
     }
 
     if (cat === 'audio') {
       bodyEl.innerHTML = '';
-      const player = AudioPlayerComponent.create(item.url, item.name);
+      const player = AudioPlayerComponent.create(mediaSrc, item.name);
       bodyEl.appendChild(player);
       return;
     }
 
     if (cat === 'pdf') {
       bodyEl.innerHTML = `
-        <iframe src="${escapeHtml(item.url)}" style="width: 100%; height: 60vh; border: none; border-radius: 12px;"></iframe>
+        <iframe src="${escapeHtml(mediaSrc)}" style="width: 100%; height: 60vh; border: none; border-radius: 12px;"></iframe>
       `;
       return;
     }
 
     // Text, Markdown, JSON, Code fetch
     try {
-      const resp = await fetch(item.url);
+      const resp = await fetch(mediaSrc);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const text = await resp.text();
 

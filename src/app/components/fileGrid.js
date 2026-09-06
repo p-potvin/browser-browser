@@ -13,7 +13,7 @@ export class FileGridView {
    * @param {Object} options
    */
   static render(container, items, options = {}) {
-    const { onOpenItem, onQuickLook, selectedIndex = -1 } = options;
+    const { onOpenItem, onQuickLook, selectedIndex = -1, onContextMenu } = options;
     container.innerHTML = '';
 
     const grid = document.createElement('div');
@@ -37,10 +37,30 @@ export class FileGridView {
       card.dataset.index = index;
       card.style.animationDelay = `${Math.min(index * 20, 200)}ms`;
 
-      // Live image thumbnail or SVG icon
+      // Resolve preview thumbnail or icon
       let previewContent = '';
-      if (item.category === 'image') {
-        previewContent = `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.name)}" loading="lazy" />`;
+      const thumbJpg = item.thumbJpgUrl || item.thumbUrl;
+      const thumbWebm = item.thumbWebmUrl || item.videoPreviewUrl;
+      const hasThumb = Boolean(thumbJpg);
+      const isNativeImage = !hasThumb && item.category === 'image';
+      const showThumbnail = hasThumb || isNativeImage;
+      const mediaSrc = item.streamUrl || item.url;
+
+      if (hasThumb) {
+        previewContent = `
+          <img class="vwsq-thumb-img" src="${escapeHtml(thumbJpg)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+          ${thumbWebm ? `<video class="vwsq-thumb-video" src="${escapeHtml(thumbWebm)}" loop playsinline preload="none"></video>` : ''}
+          <div class="vwsq-type-badge" title="${escapeHtml(item.extension || item.category)}">
+            ${getFileIcon(item.name, item.isDirectory, item.isParent)}
+          </div>
+        `;
+      } else if (isNativeImage) {
+        previewContent = `
+          <img class="vwsq-thumb-img" src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+          <div class="vwsq-type-badge" title="${escapeHtml(item.extension || item.category)}">
+            ${getFileIcon(item.name, item.isDirectory, item.isParent)}
+          </div>
+        `;
       } else {
         previewContent = getFileIcon(item.name, item.isDirectory, item.isParent);
       }
@@ -57,7 +77,7 @@ export class FileGridView {
           </button>
         </div>
 
-        <div class="vwsq-card-preview">
+        <div class="vwsq-card-preview ${showThumbnail ? 'has-thumbnail' : ''}">
           ${previewContent}
         </div>
 
@@ -66,6 +86,32 @@ export class FileGridView {
           <div class="vwsq-card-meta">${escapeHtml(item.sizeFormatted)}</div>
         </div>
       `;
+
+      // WebM video hover playback with audio
+      if (thumbWebm) {
+        const video = card.querySelector('video.vwsq-thumb-video');
+        const img = card.querySelector('img.vwsq-thumb-img');
+        if (video && img) {
+          card.addEventListener('mouseenter', () => {
+            video.style.display = 'block';
+            img.style.display = 'none';
+            video.muted = false;
+            video.volume = 1.0;
+            video.play().catch(() => {
+              // If browser autoplay policy blocks unmuted audio on first hover
+              video.muted = true;
+              video.play().catch(() => {});
+            });
+          });
+
+          card.addEventListener('mouseleave', () => {
+            video.pause();
+            video.currentTime = 0;
+            video.style.display = 'none';
+            img.style.display = 'block';
+          });
+        }
+      }
 
       // Click to open or navigate
       card.addEventListener('click', (e) => {
@@ -76,13 +122,18 @@ export class FileGridView {
         }
         if (e.target.closest('.vwsq-card-copy-btn')) {
           e.stopPropagation();
-          copyToClipboard(item.url).then(ok => {
+          copyToClipboard(item.targetPath || item.url).then(ok => {
             if (ok) showToast('Copied path to clipboard', 'success');
           });
           return;
         }
 
         if (onOpenItem) onOpenItem(item);
+      });
+
+      // Right-click context menu
+      card.addEventListener('contextmenu', (e) => {
+        if (onContextMenu) onContextMenu(e, item);
       });
 
       grid.appendChild(card);

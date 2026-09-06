@@ -562,9 +562,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: 14px 20px;
   background: var(--vwsq-console-raised, #191d27);
   border-bottom: 1px solid var(--vwsq-console-border, rgba(255, 255, 255, 0.06));
+  gap: 16px;
+  min-width: 0;
 }
 
 .vwsq-modal-title {
@@ -574,6 +576,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.vwsq-modal-counter {
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-block;
+  user-select: none;
 }
 
 .vwsq-modal-body {

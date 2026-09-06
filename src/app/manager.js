@@ -1,5 +1,7 @@
 /**
  * Dedicated Full-Tab Local Files Manager Application
+ * Supports hierarchical virtual file system browsing, Windows Explorer-style address bar,
+ * Back/Forward/Up navigation, bottom status bar, and .thumbs previews.
  */
 
 import { NavbarComponent } from './components/navbar.js';
@@ -8,11 +10,14 @@ import { FileGridView } from './components/fileGrid.js';
 import { FileTableView } from './components/fileTable.js';
 import { FileListView } from './components/fileList.js';
 import { PreviewModal } from './components/previewModal.js';
-import { ZipperWidget } from './components/zipperWidget.js';
+import { PropertiesModal } from './components/propertiesModal.js';
+import { ContextMenuComponent } from './components/contextMenu.js';
+import { SettingsModal } from './components/settingsModal.js';
 import { KeybindingsController } from '../common/keybindings.js';
 import { getSettings, saveSettings } from '../common/storage.js';
-import { getFileTypeCategory, formatBytes, formatDate, showToast, navigateTo } from '../common/utils.js';
+import { getFileTypeCategory, formatBytes, formatDate, showToast, navigateTo, matchesAnyGlob } from '../common/utils.js';
 import { FirefoxDirectoryParser } from '../content/parser.js';
+import { VirtualFileSystem } from './vfs.js';
 
 export class AppManager {
   constructor() {
@@ -26,33 +31,83 @@ export class AppManager {
     this.sortAsc = true;
     this.selectedIndex = 0;
     this.previewModal = new PreviewModal();
+    this.propertiesModal = new PropertiesModal();
+    this.contextMenu = new ContextMenuComponent();
+    this.settingsModal = new SettingsModal();
+    this.settings = {};
     this.keybindings = null;
     this.currentDirHandle = null;
     this.dirStack = [];
     this.sidebarCollapsed = false;
+
+    // Virtual File System & Navigation History
+    this.vfs = new VirtualFileSystem();
+    this.currentVfsPath = '';
+    this.navHistory = [''];
+    this.navHistoryIndex = 0;
+
+    // Native Messaging Host State
+    this.isNativeMode = false;
+    this.httpPort = 45123;
+    this.everythingAvailable = false;
+    this.drives = [];
+    this.currentParentPath = null;
   }
 
   async init() {
-    const settings = await getSettings();
-    this.currentView = settings.defaultView || 'grid';
-    this.sidebarCollapsed = settings.sidebarCollapsed || false;
+    this.settings = await getSettings();
+    this.currentView = this.settings.defaultView || 'grid';
+    this.sidebarCollapsed = this.settings.sidebarCollapsed || false;
+    this.sortField = this.settings.sortField || 'name';
+    this.sortAsc = this.settings.sortAsc !== false;
+
+    // Check if C++ Native Messaging Host is available
+    await this.checkNativeHost();
 
     this.bindEvents();
     await this.render();
     this.initKeybindings();
-    ZipperWidget.init();
 
     // Check if URL query contains a folder path
     const params = new URLSearchParams(window.location.search);
     const pathParam = params.get('path');
     if (pathParam) {
-      this.currentPath = pathParam;
       await this.loadFolder(pathParam);
+    } else if (this.isNativeMode) {
+      // Default to C:\ in native mode
+      await this.loadFolder('C:\\');
     }
   }
 
+  async checkNativeHost() {
+    try {
+      if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
+        const pingResp = await browser.runtime.sendMessage({ action: 'nativePing' });
+        if (pingResp && pingResp.success) {
+          this.isNativeMode = true;
+          this.httpPort = pingResp.httpPort || 45123;
+          this.everythingAvailable = pingResp.everythingAvailable || false;
+
+          // Fetch real physical drives
+          const drivesResp = await browser.runtime.sendMessage({ action: 'nativeGetDrives' });
+          if (drivesResp && drivesResp.drives) {
+            this.drives = drivesResp.drives;
+          }
+
+          console.log('[browser-browser] Native Host connected:', pingResp);
+          showToast(`Native Mode: C++ Host active on port ${this.httpPort}`, 'success');
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Native host check note:', e);
+    }
+    this.isNativeMode = false;
+    return false;
+  }
+
   bindEvents() {
-    // Open Folder buttons
+    // Open Folder buttons (header, dropzone, etc.)
     document.querySelectorAll('.vwsq-open-folder-btn').forEach(btn => {
       btn.addEventListener('click', () => this.promptOpenFolder());
     });
@@ -68,6 +123,38 @@ export class AppManager {
       folderInput.addEventListener('change', (e) => {
         this.handleFileInput(e.target.files);
       });
+    }
+
+    // Navigation Controls
+    const backBtn = document.getElementById('vwsq-nav-back');
+    if (backBtn) backBtn.addEventListener('click', () => this.goBack());
+
+    const fwdBtn = document.getElementById('vwsq-nav-forward');
+    if (fwdBtn) fwdBtn.addEventListener('click', () => this.goForward());
+
+    const upBtn = document.getElementById('vwsq-nav-up');
+    if (upBtn) upBtn.addEventListener('click', () => this.goUp());
+
+    const refreshBtn = document.getElementById('vwsq-nav-refresh');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => this.refresh());
+
+    // Prominent Explorer Address Bar
+    const addressInput = document.getElementById('vwsq-address-input');
+    if (addressInput) {
+      addressInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.handleAddressSubmit();
+        }
+      });
+      addressInput.addEventListener('focus', () => {
+        addressInput.select();
+      });
+    }
+
+    const goBtn = document.getElementById('vwsq-address-go-btn');
+    if (goBtn) {
+      goBtn.addEventListener('click', () => this.handleAddressSubmit());
     }
 
     // Drag and drop zone
@@ -91,6 +178,16 @@ export class AppManager {
   }
 
   async promptOpenFolder() {
+    if (this.isNativeMode) {
+      const addressInput = document.getElementById('vwsq-address-input');
+      if (addressInput) {
+        addressInput.focus();
+        addressInput.select();
+        showToast('Type or paste any path (e.g. C:\\ or D:\\) and press Enter', 'info', 3500);
+      }
+      return;
+    }
+
     if (window.showDirectoryPicker) {
       try {
         const dirHandle = await window.showDirectoryPicker();
@@ -99,14 +196,187 @@ export class AppManager {
         return;
       } catch (err) {
         if (err.name !== 'AbortError') {
-          console.warn('showDirectoryPicker failed, falling back:', err);
+          console.warn('showDirectoryPicker failed, falling back to input:', err);
         }
       }
     }
 
     // Fallback to webkitdirectory input
     const folderInput = document.getElementById('vwsq-folder-input');
-    if (folderInput) folderInput.click();
+    if (folderInput) {
+      folderInput.value = '';
+      folderInput.click();
+    }
+  }
+
+  handleFileInput(fileList) {
+    if (!fileList || fileList.length === 0) return;
+
+    // Load into hierarchical Virtual File System
+    this.vfs.loadFromFileList(fileList);
+    this.currentVfsPath = '';
+    this.navHistory = [''];
+    this.navHistoryIndex = 0;
+
+    // Update tab title
+    const tabTitle = document.getElementById('vwsq-tab-title');
+    if (tabTitle) {
+      tabTitle.textContent = this.vfs.rootName;
+    }
+
+    this.loadVfsPath('', false);
+    showToast(`Loaded "${this.vfs.rootName}" (${this.vfs.allFilesCount} files)`, 'success');
+  }
+
+  loadVfsPath(normPath, pushHistory = true) {
+    if (pushHistory) {
+      this.navHistory = this.navHistory.slice(0, this.navHistoryIndex + 1);
+      this.navHistory.push(normPath);
+      this.navHistoryIndex = this.navHistory.length - 1;
+    }
+
+    this.currentVfsPath = normPath;
+    this.items = this.vfs.getItems(normPath);
+    this.currentPath = this.vfs.getDisplayPath(normPath);
+
+    this.updateAddressBar();
+    this.updateNavButtons();
+    this.applyFilters();
+    this.renderFiles();
+  }
+
+  navigateVfs(targetPath) {
+    this.loadVfsPath(targetPath, true);
+  }
+
+  goBack() {
+    if (this.navHistoryIndex > 0) {
+      this.navHistoryIndex--;
+      const targetPath = this.navHistory[this.navHistoryIndex];
+      if (this.isNativeMode) {
+        this.loadNativeFolder(targetPath, false);
+      } else {
+        this.loadVfsPath(targetPath, false);
+      }
+    }
+  }
+
+  goForward() {
+    if (this.navHistoryIndex < this.navHistory.length - 1) {
+      this.navHistoryIndex++;
+      const targetPath = this.navHistory[this.navHistoryIndex];
+      if (this.isNativeMode) {
+        this.loadNativeFolder(targetPath, false);
+      } else {
+        this.loadVfsPath(targetPath, false);
+      }
+    }
+  }
+
+  goUp() {
+    if (this.isNativeMode) {
+      if (this.currentParentPath) {
+        this.loadNativeFolder(this.currentParentPath);
+      } else {
+        showToast('Already at drive root', 'info');
+      }
+      return;
+    }
+
+    if (this.vfs.allFilesCount > 0) {
+      if (this.currentVfsPath !== '') {
+        const folder = this.vfs.folders.get(this.currentVfsPath);
+        const parentPath = folder ? folder.parentPath : '';
+        this.navigateVfs(parentPath);
+      } else {
+        showToast('Already at the top level of this workspace', 'info');
+      }
+      return;
+    }
+
+    // Direct URL navigation fallback
+    const parent = this.filteredItems.find(i => i.isParent);
+    if (parent) {
+      this.loadFolder(parent.url);
+    } else {
+      const url = this.currentPath.replace(/\/+$/, '');
+      const lastSlash = url.lastIndexOf('/');
+      if (lastSlash > 8) {
+        this.loadFolder(url.substring(0, lastSlash + 1));
+      }
+    }
+  }
+
+  refresh() {
+    if (this.isNativeMode) {
+      this.loadNativeFolder(this.currentPath, false);
+      showToast('Refreshed via Native Host', 'info');
+      return;
+    }
+
+    if (this.vfs.allFilesCount > 0) {
+      this.loadVfsPath(this.currentVfsPath, false);
+      showToast('Directory view refreshed', 'info');
+    } else if (this.currentDirHandle) {
+      this.loadDirectoryHandle(this.currentDirHandle, false);
+    } else {
+      this.loadFolder(this.currentPath);
+    }
+  }
+
+  updateNavButtons() {
+    const backBtn = document.getElementById('vwsq-nav-back');
+    const fwdBtn = document.getElementById('vwsq-nav-forward');
+    if (backBtn) backBtn.disabled = (this.navHistoryIndex <= 0);
+    if (fwdBtn) fwdBtn.disabled = (this.navHistoryIndex >= this.navHistory.length - 1);
+  }
+
+  updateAddressBar() {
+    const addressInput = document.getElementById('vwsq-address-input');
+    if (addressInput) {
+      if (this.isNativeMode) {
+        addressInput.value = this.currentPath;
+      } else if (this.vfs.allFilesCount > 0) {
+        addressInput.value = this.vfs.getDisplayPath(this.currentVfsPath);
+      } else {
+        addressInput.value = this.currentPath;
+      }
+    }
+  }
+
+  handleAddressSubmit() {
+    const addressInput = document.getElementById('vwsq-address-input');
+    if (!addressInput) return;
+
+    let typed = addressInput.value.trim();
+    if (!typed) return;
+
+    // 0. Native Host navigation
+    if (this.isNativeMode) {
+      this.loadNativeFolder(typed);
+      return;
+    }
+
+    // 1. Try matching inside current VFS
+    if (this.vfs.allFilesCount > 0) {
+      const resolved = this.vfs.resolvePath(typed);
+      if (resolved !== null) {
+        this.navigateVfs(resolved);
+        return;
+      }
+    }
+
+    // 2. Try file:/// or Windows drive path
+    if (typed.startsWith('file://') || /^[A-Za-z]:[\\/]/.test(typed)) {
+      let fullUrl = typed;
+      if (/^[A-Za-z]:[\\/]/.test(typed)) {
+        fullUrl = 'file:///' + typed.replace(/\\/g, '/');
+      }
+      this.loadFolder(fullUrl);
+      return;
+    }
+
+    showToast(`Path "${typed}" not found in current workspace`, 'warning');
   }
 
   async loadDirectoryHandle(dirHandle, clearStack = true) {
@@ -115,7 +385,6 @@ export class AppManager {
     this.currentPath = `file:///${dirHandle.name}/`;
     const items = [];
 
-    // Parent folder entry if we have history
     if (this.dirStack.length > 0) {
       items.push({
         name: '..',
@@ -156,71 +425,100 @@ export class AppManager {
     }
 
     this.items = items;
-    this.applyFilters();
-    this.render();
-  }
-
-  handleFileInput(fileList) {
-    if (!fileList || fileList.length === 0) return;
-
-    const items = [];
-    const firstFile = fileList[0];
-    const pathParts = (firstFile.webkitRelativePath || '').split('/');
-    const rootName = pathParts[0] || 'Local Folder';
-    this.currentPath = `file:///${rootName}/`;
-
-    Array.from(fileList).forEach(file => {
-      const rel = file.webkitRelativePath || file.name;
-      const parts = rel.split('/');
-      const name = parts.length > 1 ? parts[1] : parts[0];
-      const isDir = parts.length > 2;
-
-      if (!items.some(i => i.name === name)) {
-        const ext = isDir ? '' : (name.split('.').pop() || '').toLowerCase();
-        items.push({
-          name,
-          url: URL.createObjectURL(file),
-          isDirectory: isDir,
-          isParent: false,
-          sizeFormatted: isDir ? '--' : formatBytes(file.size),
-          dateModified: formatDate(file.lastModified),
-          extension: ext,
-          category: getFileTypeCategory(name, isDir)
-        });
-      }
-    });
-
-    this.items = items;
+    this.updateAddressBar();
     this.applyFilters();
     this.render();
   }
 
   async loadSampleItems() {
-    await this.loadFolder('file:///C:/Users/Administrator/Desktop/Github%20Repos/');
+    if (this.isNativeMode) {
+      await this.loadNativeFolder('C:\\Users\\Administrator\\Desktop\\Github Repos\\');
+    } else {
+      await this.loadFolder('file:///C:/Users/Administrator/Desktop/Github%20Repos/');
+    }
+  }
+
+  async loadNativeFolder(targetPath, pushHistory = true) {
+    let clean = targetPath;
+    if (clean.startsWith('file:///')) {
+      clean = decodeURIComponent(clean.substring(8)).replace(/\//g, '\\');
+    } else if (clean.startsWith('file://')) {
+      clean = decodeURIComponent(clean.substring(7)).replace(/\//g, '\\');
+    }
+    if (clean.length === 2 && clean[1] === ':') {
+      clean += '\\';
+    }
+
+    if (pushHistory) {
+      this.navHistory = this.navHistory.slice(0, this.navHistoryIndex + 1);
+      this.navHistory.push(clean);
+      this.navHistoryIndex = this.navHistory.length - 1;
+    }
+
+    this.currentPath = clean;
+    this.updateAddressBar();
+    this.updateNavButtons();
+
+    // Update tab title
+    const parts = clean.split('\\').filter(Boolean);
+    const folderName = parts.length > 0 ? parts[parts.length - 1] : clean;
+    const tabTitle = document.getElementById('vwsq-tab-title');
+    if (tabTitle) tabTitle.textContent = folderName;
+
+    try {
+      const response = await browser.runtime.sendMessage({
+        action: 'nativeListDir',
+        path: clean
+      });
+
+      if (response && response.success) {
+        this.currentParentPath = response.parent_path;
+        let items = [];
+
+        if (response.parent_path) {
+          items.push({
+            name: '..',
+            path: response.parent_path,
+            url: response.parent_path,
+            isDirectory: true,
+            isParent: true,
+            sizeFormatted: '--',
+            dateModified: '--',
+            extension: '',
+            category: 'directory'
+          });
+        }
+
+        if (response.items && response.items.length > 0) {
+          items.push(...response.items.map(it => ({
+            ...it,
+            url: it.path
+          })));
+        }
+
+        this.items = items;
+        this.applyFilters();
+        await this.render();
+        return;
+      } else {
+        showToast(response?.error || 'Failed to list directory', 'error');
+      }
+    } catch (err) {
+      console.error('loadNativeFolder error:', err);
+      showToast(`Error accessing ${clean}: ${err.message}`, 'error');
+    }
   }
 
   async loadFolder(folderUrl) {
-    this.currentPath = folderUrl;
-
-    // 1. Attempt to fetch real directory listing via extension background script
-    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.sendMessage) {
-      try {
-        const res = await browser.runtime.sendMessage({ action: 'fetchDirectory', url: folderUrl });
-        if (res && res.success && res.html) {
-          const parsed = FirefoxDirectoryParser.parseHtml(res.html, folderUrl);
-          if (parsed && parsed.items && parsed.items.length > 0) {
-            this.items = parsed.items;
-            this.applyFilters();
-            this.render();
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn('Extension background fetchDirectory note:', err);
-      }
+    if (this.isNativeMode) {
+      await this.loadNativeFolder(folderUrl);
+      return;
     }
 
-    // 2. Direct fetch attempt
+    this.currentPath = folderUrl;
+    this.updateAddressBar();
+
+    // 1. Direct fetch attempt
     try {
       const resp = await fetch(folderUrl);
       if (resp.ok) {
@@ -235,13 +533,7 @@ export class AppManager {
       }
     } catch (e) {}
 
-    // 3. If in extension tab and fetch failed, navigate tab to real file:/// path
-    if (typeof browser !== 'undefined' && browser.runtime && folderUrl.startsWith('file:///')) {
-      navigateTo(folderUrl);
-      return;
-    }
-
-    // 4. Standalone browser test demo simulation
+    // 2. Standalone browser test demo simulation
     let clean = folderUrl.replace(/file:\/\/\/?/, '').replace(/\/+$/, '');
     const parts = clean.split('/').filter(Boolean);
     const folderName = parts.length > 0 ? decodeURIComponent(parts[parts.length - 1]) : 'Root';
@@ -278,7 +570,7 @@ export class AppManager {
       this.items = [
         { name: '..', url: 'file:///C:/Users/Administrator/Desktop/', isDirectory: true, isParent: true, sizeFormatted: '--', dateModified: '--', category: 'directory', extension: '' },
         { name: 'browser-browser', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/browser-browser/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now()), category: 'directory', extension: '' },
-        { name: 'python-zipper', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/python-zipper/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 3600000), category: 'directory', extension: '' },
+        { name: 'vaultwares-api', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-api/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 3600000), category: 'directory', extension: '' },
         { name: 'vaultwares-themes', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-themes/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 7200000), category: 'directory', extension: '' },
         { name: 'agent-ledger', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/agent-ledger/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 18000000), category: 'directory', extension: '' },
         { name: 'vaultwares-docs', url: 'file:///C:/Users/Administrator/Desktop/Github%20Repos/vaultwares-docs/', isDirectory: true, isParent: false, sizeFormatted: '--', dateModified: formatDate(Date.now() - 86400000), category: 'directory', extension: '' },
@@ -295,6 +587,33 @@ export class AppManager {
   applyFilters() {
     let items = [...this.items];
 
+    // Glob exclusions (Folder exclusions & File exclusions)
+    const folderEx = this.settings?.folderExclusions || [];
+    const fileEx = this.settings?.fileExclusions || [];
+    const hideSidecars = this.settings?.hideSidecars !== false;
+
+    items = items.filter(item => {
+      if (item.isParent) return true;
+
+      // Folder exclusions
+      if (item.isDirectory) {
+        if (matchesAnyGlob(item.name, folderEx)) return false;
+        return true;
+      }
+
+      // Hide sidecars if enabled
+      if (hideSidecars && item.isSidecar) {
+        return false;
+      }
+
+      // File exclusions
+      if (matchesAnyGlob(item.name, fileEx)) {
+        return false;
+      }
+
+      return true;
+    });
+
     if (this.currentCategory !== 'all') {
       items = items.filter(item => item.category === this.currentCategory || (this.currentCategory === 'directory' && item.isDirectory));
     }
@@ -310,10 +629,10 @@ export class AppManager {
       if (a.isDirectory && !b.isDirectory) return -1;
       if (!a.isDirectory && b.isDirectory) return 1;
 
-      let valA = a[this.sortField] || a.name;
-      let valB = b[this.sortField] || b.name;
+      let valA = a[this.sortField] !== undefined ? a[this.sortField] : a.name;
+      let valB = b[this.sortField] !== undefined ? b[this.sortField] : b.name;
 
-      if (typeof valA === 'string') {
+      if (typeof valA === 'string' && typeof valB === 'string') {
         const comp = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
         return this.sortAsc ? comp : -comp;
       }
@@ -334,7 +653,37 @@ export class AppManager {
       await NavbarComponent.render(topbar, {
         currentUrl: this.currentPath,
         currentView: this.currentView,
+        sortField: this.sortField,
+        sortAsc: this.sortAsc,
+        onSortChange: async (field, asc) => {
+          this.sortField = field;
+          this.sortAsc = asc;
+          await saveSettings({ sortField: field, sortAsc: asc });
+          this.applyFilters();
+          await this.render();
+        },
+        onOpenSettings: () => {
+          this.settingsModal.open(async (newSettings) => {
+            this.settings = newSettings;
+            if (newSettings.defaultView && newSettings.defaultView !== this.currentView) {
+              this.currentView = newSettings.defaultView;
+            }
+            this.applyFilters();
+            await this.render();
+          });
+        },
         onNavigate: (url) => {
+          if (this.isNativeMode) {
+            this.loadNativeFolder(url);
+            return;
+          }
+          if (this.vfs.allFilesCount > 0) {
+            const resolved = this.vfs.resolvePath(url);
+            if (resolved !== null) {
+              this.navigateVfs(resolved);
+              return;
+            }
+          }
           if (this.currentDirHandle) {
             this.loadFolder(url);
           } else {
@@ -352,11 +701,7 @@ export class AppManager {
           this.renderFiles();
         },
         onRefresh: () => {
-          if (this.currentDirHandle) {
-            this.loadFolder(this.currentPath);
-          } else {
-            navigateTo(this.currentPath);
-          }
+          this.refresh();
         }
       });
     }
@@ -364,6 +709,7 @@ export class AppManager {
     if (sidebar) {
       await SidebarComponent.render(sidebar, {
         currentUrl: this.currentPath,
+        drives: this.drives,
         activeCategory: this.currentCategory,
         isCollapsed: this.sidebarCollapsed,
         onToggleCollapse: async (collapsed) => {
@@ -372,6 +718,17 @@ export class AppManager {
           this.render();
         },
         onNavigate: (url) => {
+          if (this.isNativeMode) {
+            this.loadNativeFolder(url);
+            return;
+          }
+          if (this.vfs.allFilesCount > 0) {
+            const resolved = this.vfs.resolvePath(url);
+            if (resolved !== null) {
+              this.navigateVfs(resolved);
+              return;
+            }
+          }
           if (this.currentDirHandle) {
             this.loadFolder(url);
           } else {
@@ -391,48 +748,60 @@ export class AppManager {
 
   renderFiles() {
     const fileContainer = document.getElementById('vwsq-file-container');
-    const statsEl = document.getElementById('vwsq-stats');
+    const statusCountEl = document.getElementById('vwsq-status-item-count');
+    const statusSummaryEl = document.getElementById('vwsq-status-summary');
+    const statusSelectionEl = document.getElementById('vwsq-status-selection');
+    const statusSelectedInfoEl = document.getElementById('vwsq-status-selected-info');
+
     if (!fileContainer) return;
 
     if (this.items.length === 0) {
-      return; // Keep dropzone visible
+      if (statusCountEl) statusCountEl.textContent = '0 items';
+      if (statusSummaryEl) statusSummaryEl.textContent = 'Workspace empty';
+      return;
     }
 
     const total = this.filteredItems.length;
     const dirs = this.filteredItems.filter(i => i.isDirectory && !i.isParent).length;
     const files = this.filteredItems.filter(i => !i.isDirectory).length;
-    if (statsEl) {
-      statsEl.textContent = `${total} items (${dirs} folders, ${files} files)`;
+
+    // Update bottom status bar
+    if (statusCountEl) {
+      statusCountEl.textContent = `${total} items (${dirs} folders, ${files} files)`;
+    }
+    if (statusSummaryEl) {
+      if (this.isNativeMode) {
+        const ev = this.everythingAvailable ? ' • Everything IPC active' : '';
+        statusSummaryEl.textContent = `NATIVE HOST (Port ${this.httpPort}${ev}) • ${this.currentPath}`;
+      } else if (this.vfs.allFilesCount > 0) {
+        statusSummaryEl.textContent = `${formatBytes(this.vfs.totalSizeBytes)} total • ${this.vfs.rootName}`;
+      } else {
+        statusSummaryEl.textContent = `${this.currentView.toUpperCase()} VIEW`;
+      }
+    }
+
+    // Selected item status
+    const selectedItem = this.filteredItems[this.selectedIndex];
+    if (selectedItem && statusSelectionEl && statusSelectedInfoEl && !selectedItem.isParent) {
+      statusSelectionEl.style.display = 'flex';
+      statusSelectedInfoEl.textContent = `Selected: ${selectedItem.name} (${selectedItem.sizeFormatted})`;
+    } else if (statusSelectionEl) {
+      statusSelectionEl.style.display = 'none';
     }
 
     const options = {
       selectedIndex: this.selectedIndex,
       onOpenItem: async (item) => {
-        if (item.isDirectory) {
-          if (this.currentDirHandle) {
-            try {
-              if (item.isParent && this.dirStack && this.dirStack.length > 0) {
-                const prev = this.dirStack.pop();
-                await this.loadDirectoryHandle(prev, false);
-                return;
-              } else {
-                const subHandle = await this.currentDirHandle.getDirectoryHandle(item.name);
-                if (!this.dirStack) this.dirStack = [];
-                this.dirStack.push(this.currentDirHandle);
-                await this.loadDirectoryHandle(subHandle, false);
-                return;
-              }
-            } catch (e) {
-              console.warn('Subdirectory handle resolution fallback:', e);
-            }
-          }
-          navigateTo(item.url);
-        } else {
-          this.previewModal.open(item, this.filteredItems);
-        }
+        await this.openItem(item);
       },
       onQuickLook: (item, allItems) => {
         this.previewModal.open(item, allItems);
+      },
+      onContextMenu: (e, item) => {
+        this.contextMenu.open(e, item, {
+          onOpen: (it) => this.openItem(it),
+          onProperties: (it) => this.propertiesModal.open(it)
+        });
       },
       onSort: (field) => {
         if (this.sortField === field) {
@@ -454,6 +823,52 @@ export class AppManager {
       FileTableView.render(fileContainer, this.filteredItems, options);
     } else {
       FileListView.render(fileContainer, this.filteredItems, options);
+    }
+  }
+
+  async openItem(item) {
+    if (!item) return;
+
+    this.selectedIndex = this.filteredItems.indexOf(item);
+    const statusSelectionEl = document.getElementById('vwsq-status-selection');
+    const statusSelectedInfoEl = document.getElementById('vwsq-status-selected-info');
+    if (statusSelectionEl && statusSelectedInfoEl && !item.isParent) {
+      statusSelectionEl.style.display = 'flex';
+      statusSelectedInfoEl.textContent = `Selected: ${item.name} (${item.sizeFormatted})`;
+    }
+
+    if (item.isDirectory) {
+      if (this.isNativeMode) {
+        this.loadNativeFolder(item.path || item.url);
+        return;
+      }
+
+      if (this.vfs.allFilesCount > 0) {
+        this.navigateVfs(item.targetPath || '');
+        return;
+      }
+
+      if (this.currentDirHandle) {
+        try {
+          if (item.isParent && this.dirStack && this.dirStack.length > 0) {
+            const prev = this.dirStack.pop();
+            await this.loadDirectoryHandle(prev, false);
+            return;
+          } else {
+            const subHandle = await this.currentDirHandle.getDirectoryHandle(item.name);
+            if (!this.dirStack) this.dirStack = [];
+            this.dirStack.push(this.currentDirHandle);
+            await this.loadDirectoryHandle(subHandle, false);
+            return;
+          }
+        } catch (e) {
+          console.warn('Subdirectory handle resolution fallback:', e);
+        }
+      }
+
+      this.loadFolder(item.url);
+    } else {
+      this.previewModal.open(item, this.filteredItems);
     }
   }
 
@@ -501,7 +916,9 @@ export class AppManager {
         const item = this.filteredItems[this.selectedIndex];
         if (item) {
           if (item.isDirectory) {
-            if (this.currentDirHandle) {
+            if (this.vfs.allFilesCount > 0) {
+              this.navigateVfs(item.targetPath || '');
+            } else if (this.currentDirHandle) {
               this.loadFolder(item.url);
             } else {
               navigateTo(item.url);
@@ -512,16 +929,7 @@ export class AppManager {
         }
       },
       onParentDirectory: () => {
-        const parent = this.filteredItems.find(i => i.isParent);
-        if (parent) {
-          navigateTo(parent.url);
-        } else {
-          const url = this.currentPath.replace(/\/+$/, '');
-          const lastSlash = url.lastIndexOf('/');
-          if (lastSlash > 8) {
-            navigateTo(url.substring(0, lastSlash + 1));
-          }
-        }
+        this.goUp();
       },
       onToggleSidebar: async () => {
         this.sidebarCollapsed = !this.sidebarCollapsed;

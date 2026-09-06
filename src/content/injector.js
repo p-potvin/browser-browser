@@ -9,7 +9,6 @@ import { FileGridView } from '../app/components/fileGrid.js';
 import { FileTableView } from '../app/components/fileTable.js';
 import { FileListView } from '../app/components/fileList.js';
 import { PreviewModal } from '../app/components/previewModal.js';
-import { ZipperWidget } from '../app/components/zipperWidget.js';
 import { KeybindingsController } from '../common/keybindings.js';
 import { getSettings, saveSettings } from '../common/storage.js';
 import { navigateTo } from '../common/utils.js';
@@ -47,8 +46,6 @@ export class DirectoryInjector {
     this.applyFilters();
     this.render();
     this.initKeybindings();
-
-    ZipperWidget.init();
   }
 
   createRoot() {
