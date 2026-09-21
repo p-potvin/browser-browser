@@ -29,7 +29,7 @@ try {
     Copy-Item (Join-Path $ProjectRoot "manifest.json") $TempStage
     Copy-Item (Join-Path $ProjectRoot "assets") $TempStage -Recurse
     Copy-Item (Join-Path $ProjectRoot "src") $TempStage -Recurse
-    Copy-Item (Join-Path $ProjectRoot "vaultwares-themes") $TempStage -Recurse
+    Copy-Item (Join-Path $ProjectRoot "vaultwares-themes\vaultsqware\vaultsqware.css") $TempStage -Recurse
 
     Compress-Archive -Path "$TempStage\*" -DestinationPath $ZipPath -CompressionLevel Optimal
     Copy-Item $ZipPath $XpiPath
