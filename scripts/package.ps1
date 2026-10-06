@@ -22,19 +22,55 @@ if (Test-Path $XpiPath) { Remove-Item $XpiPath -Force }
 
 Write-Host "Packaging browser-browser v$Version from $ProjectRoot..." -ForegroundColor Cyan
 
-$TempStage = Join-Path $env:TEMP "bb-stage-$([System.Guid]::NewGuid().ToString().Substring(0,8))"
+$TempStage = Join-Path $DistPath "_staging"
+if (Test-Path $TempStage) { Remove-Item $TempStage -Recurse -Force }
 New-Item -ItemType Directory -Path $TempStage -Force | Out-Null
+$StageRoot = (Resolve-Path $TempStage).Path
 
 try {
     Copy-Item (Join-Path $ProjectRoot "manifest.json") $TempStage
     Copy-Item (Join-Path $ProjectRoot "assets") $TempStage -Recurse
     Copy-Item (Join-Path $ProjectRoot "src") $TempStage -Recurse
-    Copy-Item (Join-Path $ProjectRoot "vaultwares-themes\vaultsqware\vaultsqware.css") $TempStage -Recurse
+    if (Test-Path (Join-Path $ProjectRoot "vaultwares-themes")) {
+        Copy-Item (Join-Path $ProjectRoot "vaultwares-themes") $TempStage -Recurse
+    }
 
-    Compress-Archive -Path "$TempStage\*" -DestinationPath $ZipPath -CompressionLevel Optimal
+    # Guarantee forward slashes ('/') in ZIP entry paths.
+    # Windows Compress-Archive uses backslashes ('\') which causes Firefox nsZipArchive to reject
+    # the archive with: "Invalid file name in archive: assets\favicon.svg"
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $zipStream = [System.IO.File]::Open($ZipPath, [System.IO.FileMode]::Create)
+    $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+
+    try {
+        Get-ChildItem -Path $StageRoot -Recurse -File | ForEach-Object {
+            $fullPath = (Resolve-Path $_.FullName).Path
+            $relPath = $fullPath.Substring($StageRoot.Length).TrimStart('\', '/')
+            # Enforce forward slash path separators required by ZIP specification and Firefox nsZipArchive
+            $entryName = $relPath.Replace('\', '/')
+            $entry = $archive.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+            $entry.LastWriteTime = $_.LastWriteTime
+            $entryStream = $entry.Open()
+            $fileStream = [System.IO.File]::OpenRead($_.FullName)
+            try {
+                $fileStream.CopyTo($entryStream)
+            }
+            finally {
+                $fileStream.Dispose()
+                $entryStream.Dispose()
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+        $zipStream.Dispose()
+    }
+
     Copy-Item $ZipPath $XpiPath
 
-    Write-Host "Extension packaged successfully:" -ForegroundColor Green
+    Write-Host "Extension packaged successfully with forward slashes:" -ForegroundColor Green
     Write-Host "   ZIP: $ZipPath" -ForegroundColor Gray
     Write-Host "   XPI: $XpiPath" -ForegroundColor Gray
 }

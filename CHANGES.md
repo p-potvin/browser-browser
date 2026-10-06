@@ -12,6 +12,7 @@ The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd 
 - **Firefox Image Compositor RAM Bloat**: Integrated `IntersectionObserver` viewport unmounting in `fileGrid.js` for catalogs exceeding 60 items, unmounting off-screen images to keep decoded RGBA memory bounded. Added progressive rendering (60 items/frame) to prevent UI thread freezes during massive folder loads.
 - **Zombie Winsock Connections & HTTP Cache Strategy**: Added 5-second socket receive/send timeouts (`SO_RCVTIMEO`/`SO_SNDTIMEO`) to native C++ HTTP server (`http_server.cpp`). Injected `Cache-Control: public, max-age=86400, immutable` for `.thumbs` directory requests and `Cache-Control: no-cache, no-store, must-revalidate` for video/audio media streams.
 - **Large File Syntax Buffer Bloat**: Enforced `maxPreviewSizeBytes` checks and 256KB Range chunking in `previewModal.js` to prevent huge files from freezing syntax highlighting engines. Added 150ms debounce to the search input in `navbar.js`.
+- **Firefox Extension Archive Conformance**: Fixed Windows backslash path separators in ZIP/XPI build packaging (`package.ps1`). Migrated from `Compress-Archive` to .NET `ZipArchive` to enforce standard Unix forward slashes (`/`), resolving Firefox `nsZipArchive` rejection ("Invalid file name in archive: assets\favicon.svg"). Eliminated 8.3 short-path divergence by staging in `dist/_staging`.
 
 ## [1.3.1] - Sat, 05 Sep 2026 07:51
 
