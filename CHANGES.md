@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.3.2] - Tue, 06 Oct 2026 15:58
+
+### Fixed
+- **Unbounded Blob URL Retention**: Implemented `WeakMap` memoization for `URL.createObjectURL(file)` in `vfs.js`. Replaces unbounded URL allocations with file-lifecycle-bound URLs and explicit `vfs.destroy()` revocation, eliminating RAM accumulation across directory transitions and repetitive searches.
+- **Media Decoder Engine Leaks**: Implemented deep DOM cleanup (`cleanup(container)`) across `fileGrid.js`, `fileList.js`, `fileTable.js`, `previewModal.js`, and `audioPlayer.js`. Explicitly pauses media, strips source attributes, and invokes `.load()` to release underlying Gecko/WebKit codec decoder contexts and Winsock connections.
+- **Static DOM Video Deck Saturation**: Replaced eager thumbnail card video elements in `fileGrid.js` with dynamic on-hover mounting and unmounting, preventing hundreds of dormant video decoders from consuming hundreds of megabytes of process memory.
+- **Firefox Image Compositor RAM Bloat**: Integrated `IntersectionObserver` viewport unmounting in `fileGrid.js` for catalogs exceeding 60 items, unmounting off-screen images to keep decoded RGBA memory bounded. Added progressive rendering (60 items/frame) to prevent UI thread freezes during massive folder loads.
+- **Zombie Winsock Connections & HTTP Cache Strategy**: Added 5-second socket receive/send timeouts (`SO_RCVTIMEO`/`SO_SNDTIMEO`) to native C++ HTTP server (`http_server.cpp`). Injected `Cache-Control: public, max-age=86400, immutable` for `.thumbs` directory requests and `Cache-Control: no-cache, no-store, must-revalidate` for video/audio media streams.
+- **Large File Syntax Buffer Bloat**: Enforced `maxPreviewSizeBytes` checks and 256KB Range chunking in `previewModal.js` to prevent huge files from freezing syntax highlighting engines. Added 150ms debounce to the search input in `navbar.js`.
+
 ## [1.3.1] - Sat, 05 Sep 2026 07:51
 
 ### Fixed

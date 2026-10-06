@@ -135,10 +135,14 @@ export class NavbarComponent {
       NavbarComponent.render(container, options);
     });
 
-    // Search input
+    // Search input with 150ms debounce
     const searchInput = container.querySelector('.vwsq-search-input');
+    let searchDebounceTimer = null;
     searchInput.addEventListener('input', (e) => {
-      if (onSearch) onSearch(e.target.value);
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        if (onSearch) onSearch(e.target.value);
+      }, 150);
     });
 
     // View changer

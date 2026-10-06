@@ -97,6 +97,28 @@ export class AudioPlayerComponent {
       playBtn.innerHTML = `<div style="width: 18px; height: 18px;">${ICONS.play}</div>`;
     });
 
+    container.cleanup = () => {
+      try {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      } catch (e) {}
+    };
+
     return container;
+  }
+
+  static cleanup(container) {
+    if (!container) return;
+    if (typeof container.cleanup === 'function') {
+      container.cleanup();
+    }
+    container.querySelectorAll('audio').forEach(a => {
+      try {
+        a.pause();
+        a.removeAttribute('src');
+        a.load();
+      } catch (e) {}
+    });
   }
 }

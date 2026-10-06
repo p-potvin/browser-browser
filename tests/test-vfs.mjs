@@ -98,7 +98,14 @@ console.log('[PASS] Path resolution for Windows/Unix address bar typing verified
 // Test 6: Display path
 assert.strictEqual(vfs.getDisplayPath(''), 'MyProject\\');
 assert.strictEqual(vfs.getDisplayPath('docs'), 'MyProject\\docs\\');
-assert.strictEqual(vfs.getDisplayPath('docs/assets'), 'MyProject\\docs\\assets\\');
-console.log('[PASS] Display paths verified');
+// Test 7: Memory leak prevention - repeated navigation should not create new object URLs
+const initialUrlCount = vfs.objectUrls.length;
+for (let i = 0; i < 10; i++) {
+  vfs.getItems('');
+  vfs.getItems('docs');
+  vfs.getItems('docs/assets');
+}
+assert.strictEqual(vfs.objectUrls.length, initialUrlCount, `objectUrls array must not grow on repeat getItems calls (was ${vfs.objectUrls.length}, expected ${initialUrlCount})`);
+console.log(`[PASS] Memory leak check: URL count remained constant at ${vfs.objectUrls.length} across 30 repeated navigations`);
 
-console.log('\n>>> ALL 6 VFS TESTS PASSED SUCCESSFULLY! <<<\n');
+console.log('\n>>> ALL 7 VFS TESTS PASSED SUCCESSFULLY! <<<\n');

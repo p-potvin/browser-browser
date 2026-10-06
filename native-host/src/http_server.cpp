@@ -137,6 +137,11 @@ void HttpServer::server_thread_func() {
 void HttpServer::handle_client(uintptr_t client_socket) {
     SOCKET s = static_cast<SOCKET>(client_socket);
 
+    // Set 5-second socket timeouts to prevent lingering zombie threads
+    DWORD timeout_ms = 5000;
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_ms, sizeof(timeout_ms));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout_ms, sizeof(timeout_ms));
+
     char buffer[4096];
     int bytes_read = recv(s, buffer, sizeof(buffer) - 1, 0);
     if (bytes_read <= 0) {
@@ -259,6 +264,11 @@ void HttpServer::handle_client(uintptr_t client_socket) {
         return;
     }
 
+    bool is_thumb = (decoded_path.find("\\.thumbs\\") != std::string::npos ||
+                     decoded_path.find("/.thumbs/") != std::string::npos);
+    std::string cache_header = is_thumb ? "Cache-Control: public, max-age=86400, immutable\r\n"
+                                        : "Cache-Control: no-cache, no-store, must-revalidate\r\n";
+
     if (is_range_request) {
         uint64_t content_length = end_byte - start_byte + 1;
         std::ostringstream header;
@@ -268,6 +278,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
                << "Content-Length: " << content_length << "\r\n"
                << "Accept-Ranges: bytes\r\n"
                << "Access-Control-Allow-Origin: *\r\n"
+               << cache_header
                << "Connection: close\r\n\r\n";
 
         std::string h = header.str();
@@ -294,6 +305,7 @@ void HttpServer::handle_client(uintptr_t client_socket) {
                << "Content-Length: " << file_size << "\r\n"
                << "Accept-Ranges: bytes\r\n"
                << "Access-Control-Allow-Origin: *\r\n"
+               << cache_header
                << "Connection: close\r\n\r\n";
 
         std::string h = header.str();

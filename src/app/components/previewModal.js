@@ -1,5 +1,7 @@
 /**
  * Quick Look & Multi-Format Inspector Modal
+ * Optimized with explicit media pipeline teardown, memory leak prevention,
+ * and chunked preview safety for large text/code files.
  */
 
 import { ICONS, getFileIcon } from '../../common/icons.js';
@@ -9,7 +11,8 @@ import { MarkdownViewer } from './markdownViewer.js';
 import { AudioPlayerComponent } from './audioPlayer.js';
 
 export class PreviewModal {
-  constructor() {
+  constructor(options = {}) {
+    this.options = options;
     this.activeItem = null;
     this.items = [];
     this.currentIndex = -1;
@@ -17,20 +20,51 @@ export class PreviewModal {
   }
 
   /**
+   * Release media decoders, PDF iframes, and image buffers
+   */
+  cleanupMedia() {
+    if (!this.modalEl) return;
+
+    this.modalEl.querySelectorAll('video, audio').forEach(media => {
+      try {
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+      } catch (e) {}
+    });
+
+    this.modalEl.querySelectorAll('iframe').forEach(iframe => {
+      try {
+        iframe.src = 'about:blank';
+      } catch (e) {}
+    });
+
+    this.modalEl.querySelectorAll('img').forEach(img => {
+      try {
+        img.removeAttribute('src');
+      } catch (e) {}
+    });
+  }
+
+  /**
    * Open the preview modal for a given file item
    * @param {Object} item 
    * @param {Array<Object>} allItems 
+   * @param {Object} [options]
    */
-  async open(item, allItems = []) {
+  async open(item, allItems = [], options = {}) {
+    this.cleanupMedia();
+    this.options = { ...this.options, ...options };
     this.items = allItems.filter(i => !i.isDirectory && !i.isParent);
     this.currentIndex = this.items.findIndex(i => i.url === item.url);
     this.activeItem = item;
 
-    this.render();
+    await this.render();
   }
 
   close() {
     if (this.modalEl) {
+      this.cleanupMedia();
       this.modalEl.remove();
       this.modalEl = null;
       this.activeItem = null;
@@ -43,22 +77,25 @@ export class PreviewModal {
 
   async next() {
     if (this.currentIndex < this.items.length - 1) {
+      this.cleanupMedia();
       this.currentIndex++;
       this.activeItem = this.items[this.currentIndex];
-      this.render();
+      await this.render();
     }
   }
 
   async prev() {
     if (this.currentIndex > 0) {
+      this.cleanupMedia();
       this.currentIndex--;
       this.activeItem = this.items[this.currentIndex];
-      this.render();
+      await this.render();
     }
   }
 
   async render() {
     if (this.modalEl) {
+      this.cleanupMedia();
       this.modalEl.remove();
     }
 
@@ -142,18 +179,19 @@ export class PreviewModal {
     });
 
     // Render file content into body based on category
-    this.loadContent(item, body);
+    await this.loadContent(item, body);
   }
 
   async loadContent(item, bodyEl) {
     const cat = item.category;
     const mediaSrc = item.streamUrl || item.url;
+    const maxPreviewSizeBytes = this.options.maxPreviewSizeBytes || (50 * 1024 * 1024);
 
     if (cat === 'image') {
       bodyEl.innerHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
-          <img src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(item.name)}" class="vwsq-preview-image" />
-          <span class="vwsq-badge vwsq-badge--online">High-Resolution Image Preview</span>
+          <img src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(item.name)}" class="vwsq-preview-image" style="max-height: 65vh; max-width: 100%; border-radius: 8px; object-fit: contain;" />
+          <span class="vwsq-badge vwsq-badge--online">Image Preview</span>
         </div>
       `;
       return;
@@ -225,24 +263,56 @@ export class PreviewModal {
       return;
     }
 
-    // Text, Markdown, JSON, Code fetch
+    // Safety check for large files before fetching text into JavaScript heap
+    const fileSize = item.size || 0;
+    if (fileSize > maxPreviewSizeBytes) {
+      bodyEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; color: var(--vwsq-console-text-dim); padding: 32px 16px;">
+          <div style="width: 56px; height: 56px;">${getFileIcon(item.name)}</div>
+          <div>
+            <div style="font-weight: 600; font-size: 15px; color: var(--vwsq-console-text-bright);">${escapeHtml(item.name)}</div>
+            <div style="font-size: 13px; margin-top: 6px;">File size (${item.sizeFormatted}) exceeds inline preview limit (${formatBytes(maxPreviewSizeBytes)}).</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">Skipping syntax highlighting to keep browser responsive.</div>
+          </div>
+          <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="vwsq-btn vwsq-btn--primary">
+            <div style="width: 16px; height: 16px;">${ICONS.external}</div>
+            <span>Open in New Tab</span>
+          </a>
+        </div>
+      `;
+      return;
+    }
+
+    // Text, Markdown, JSON, Code fetch with chunk truncation safety
     try {
-      const resp = await fetch(mediaSrc);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
+      // For large text files (> 2MB), only request the first 256KB to avoid freezing the main thread
+      const isLargeText = fileSize > (2 * 1024 * 1024);
+      const headers = isLargeText ? { 'Range': 'bytes=0-262143' } : {};
+
+      const resp = await fetch(mediaSrc, { headers });
+      if (!resp.ok && resp.status !== 206) throw new Error(`HTTP ${resp.status}`);
+      let text = await resp.text();
+
+      let truncatedNotice = '';
+      if (isLargeText || text.length > 262144) {
+        text = text.slice(0, 262144);
+        truncatedNotice = `<div style="background: rgba(233, 176, 84, 0.15); border: 1px solid var(--vwsq-signal-warning); border-radius: 6px; padding: 6px 12px; margin-bottom: 12px; font-size: 12px; color: var(--vwsq-signal-warning); display: flex; align-items: center; gap: 8px;">
+          <span>Showing first 256 KB of large file (${item.sizeFormatted}). Truncated to maintain smooth browser performance.</span>
+        </div>`;
+      }
 
       if (cat === 'markdown') {
-        bodyEl.innerHTML = `<div class="vwsq-preview-markdown">${MarkdownViewer.render(text)}</div>`;
+        bodyEl.innerHTML = `${truncatedNotice}<div class="vwsq-preview-markdown">${MarkdownViewer.render(text)}</div>`;
       } else if (cat === 'json') {
         let formatted = text;
         try {
           formatted = JSON.stringify(JSON.parse(text), null, 2);
         } catch (e) {}
-        bodyEl.innerHTML = `<div class="vwsq-preview-code">${CodeViewer.highlight(formatted, 'json')}</div>`;
+        bodyEl.innerHTML = `${truncatedNotice}<div class="vwsq-preview-code">${CodeViewer.highlight(formatted, 'json')}</div>`;
       } else if (cat === 'code' || cat === 'text') {
-        bodyEl.innerHTML = `<div class="vwsq-preview-code">${CodeViewer.highlight(text, item.extension)}</div>`;
+        bodyEl.innerHTML = `${truncatedNotice}<div class="vwsq-preview-code">${CodeViewer.highlight(text, item.extension)}</div>`;
       } else {
-        bodyEl.innerHTML = `<div class="vwsq-preview-code">${CodeViewer.highlight(text, 'text')}</div>`;
+        bodyEl.innerHTML = `${truncatedNotice}<div class="vwsq-preview-code">${CodeViewer.highlight(text, 'text')}</div>`;
       }
     } catch (err) {
       bodyEl.innerHTML = `
