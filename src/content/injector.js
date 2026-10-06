@@ -35,6 +35,7 @@ export class DirectoryInjector {
 
     this.parsedData = FirefoxDirectoryParser.parse();
     const settings = await getSettings();
+    this.settings = settings;
     this.currentView = settings.defaultView || 'grid';
     this.sidebarCollapsed = settings.sidebarCollapsed || false;
 
@@ -174,15 +175,17 @@ export class DirectoryInjector {
 
     const options = {
       selectedIndex: this.selectedIndex,
+      enablePreviewThumbnails: this.settings?.enablePreviewThumbnails !== false,
+      maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes || (50 * 1024 * 1024),
       onOpenItem: (item) => {
         if (item.isDirectory) {
           navigateTo(item.url);
         } else {
-          this.previewModal.open(item, this.filteredItems);
+          this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
         }
       },
       onQuickLook: (item, allItems) => {
-        this.previewModal.open(item, allItems);
+        this.previewModal.open(item, allItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
       },
       onSort: (field) => {
         if (this.sortField === field) {
@@ -215,7 +218,7 @@ export class DirectoryInjector {
         } else if (this.filteredItems[this.selectedIndex]) {
           const item = this.filteredItems[this.selectedIndex];
           if (!item.isDirectory) {
-            this.previewModal.open(item, this.filteredItems);
+            this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
           }
         }
       },
@@ -253,7 +256,7 @@ export class DirectoryInjector {
           if (item.isDirectory) {
             navigateTo(item.url);
           } else {
-            this.previewModal.open(item, this.filteredItems);
+            this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
           }
         }
       },

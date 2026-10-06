@@ -1,5 +1,6 @@
 /**
  * File Table View Component with Column Sorting
+ * Optimized for progressive chunking and media cleanup.
  */
 
 import { ICONS, getFileIcon } from '../../common/icons.js';
@@ -7,14 +8,31 @@ import { escapeHtml, copyToClipboard, showToast } from '../../common/utils.js';
 
 export class FileTableView {
   /**
+   * Clean up any active media or observers in container
+   * @param {HTMLElement} container 
+   */
+  static cleanup(container) {
+    if (!container) return;
+    container.querySelectorAll('video, audio').forEach(media => {
+      try {
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+      } catch (e) {}
+    });
+  }
+
+  /**
    * Render table into container
    * @param {HTMLElement} container 
    * @param {Array<Object>} items 
    * @param {Object} options
    */
   static render(container, items, options = {}) {
-    const { onOpenItem, onQuickLook, onSort, sortField = 'name', sortAsc = true, selectedIndex = -1, onContextMenu } = options;
+    FileTableView.cleanup(container);
     container.innerHTML = '';
+
+    const { onOpenItem, onQuickLook, onSort, sortField = 'name', sortAsc = true, selectedIndex = -1, onContextMenu } = options;
 
     const table = document.createElement('table');
     table.className = 'vwsq-table';
@@ -58,7 +76,7 @@ export class FileTableView {
       return;
     }
 
-    items.forEach((item, index) => {
+    const createRow = (item, index) => {
       const tr = document.createElement('tr');
       tr.className = `vwsq-table-row ${index === selectedIndex ? 'selected' : ''}`;
       tr.dataset.index = index;
@@ -107,9 +125,37 @@ export class FileTableView {
         if (onContextMenu) onContextMenu(e, item);
       });
 
-      tbody.appendChild(tr);
-    });
+      return tr;
+    };
 
+    const BATCH_SIZE = 100;
+    const initialBatch = items.slice(0, BATCH_SIZE);
+    const fragment = document.createDocumentFragment();
+
+    initialBatch.forEach((item, index) => {
+      fragment.appendChild(createRow(item, index));
+    });
+    tbody.appendChild(fragment);
     container.appendChild(table);
+
+    if (items.length > BATCH_SIZE) {
+      let currentIndex = BATCH_SIZE;
+      const renderNextBatch = () => {
+        if (currentIndex >= items.length || !container.contains(table)) return;
+        const nextBatch = items.slice(currentIndex, currentIndex + BATCH_SIZE);
+        const nextFragment = document.createDocumentFragment();
+        nextBatch.forEach((item, offset) => {
+          nextFragment.appendChild(createRow(item, currentIndex + offset));
+        });
+        tbody.appendChild(nextFragment);
+        currentIndex += BATCH_SIZE;
+
+        if (currentIndex < items.length) {
+          requestAnimationFrame(renderNextBatch);
+        }
+      };
+
+      requestAnimationFrame(renderNextBatch);
+    }
   }
 }

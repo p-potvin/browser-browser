@@ -14,6 +14,7 @@ export class VirtualFileSystem {
     this.allFilesCount = 0;
     this.totalSizeBytes = 0;
     this.objectUrls = [];
+    this.fileUrlMap = new WeakMap();
   }
 
   /**
@@ -24,6 +25,7 @@ export class VirtualFileSystem {
       try { URL.revokeObjectURL(url); } catch (e) {}
     }
     this.objectUrls = [];
+    this.fileUrlMap = new WeakMap();
     this.folders.clear();
   }
 
@@ -139,7 +141,15 @@ export class VirtualFileSystem {
   }
 
   createTrackedUrl(file) {
+    if (!file) return null;
+    if (this.fileUrlMap && this.fileUrlMap.has(file)) {
+      return this.fileUrlMap.get(file);
+    }
     const url = URL.createObjectURL(file);
+    if (!this.fileUrlMap) {
+      this.fileUrlMap = new WeakMap();
+    }
+    this.fileUrlMap.set(file, url);
     this.objectUrls.push(url);
     return url;
   }

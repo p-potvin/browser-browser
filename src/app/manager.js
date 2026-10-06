@@ -791,11 +791,13 @@ export class AppManager {
 
     const options = {
       selectedIndex: this.selectedIndex,
+      enablePreviewThumbnails: this.settings?.enablePreviewThumbnails !== false,
+      maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes || (50 * 1024 * 1024),
       onOpenItem: async (item) => {
         await this.openItem(item);
       },
       onQuickLook: (item, allItems) => {
-        this.previewModal.open(item, allItems);
+        this.previewModal.open(item, allItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
       },
       onContextMenu: (e, item) => {
         this.contextMenu.open(e, item, {
@@ -868,7 +870,7 @@ export class AppManager {
 
       this.loadFolder(item.url);
     } else {
-      this.previewModal.open(item, this.filteredItems);
+      this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
     }
   }
 
@@ -880,7 +882,7 @@ export class AppManager {
         } else if (this.filteredItems[this.selectedIndex]) {
           const item = this.filteredItems[this.selectedIndex];
           if (!item.isDirectory) {
-            this.previewModal.open(item, this.filteredItems);
+            this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
           }
         }
       },
@@ -924,7 +926,7 @@ export class AppManager {
               navigateTo(item.url);
             }
           } else {
-            this.previewModal.open(item, this.filteredItems);
+            this.previewModal.open(item, this.filteredItems, { maxPreviewSizeBytes: this.settings?.maxPreviewSizeBytes });
           }
         }
       },
