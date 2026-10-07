@@ -13,6 +13,7 @@ The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd 
 - **Zombie Winsock Connections & HTTP Cache Strategy**: Added 5-second socket receive/send timeouts (`SO_RCVTIMEO`/`SO_SNDTIMEO`) to native C++ HTTP server (`http_server.cpp`). Injected `Cache-Control: public, max-age=86400, immutable` for `.thumbs` directory requests and `Cache-Control: no-cache, no-store, must-revalidate` for video/audio media streams.
 - **Large File Syntax Buffer Bloat**: Enforced `maxPreviewSizeBytes` checks and 256KB Range chunking in `previewModal.js` to prevent huge files from freezing syntax highlighting engines. Added 150ms debounce to the search input in `navbar.js`.
 - **Firefox Extension Archive Conformance**: Fixed Windows backslash path separators in ZIP/XPI build packaging (`package.ps1`). Migrated from `Compress-Archive` to .NET `ZipArchive` to enforce standard Unix forward slashes (`/`), resolving Firefox `nsZipArchive` rejection ("Invalid file name in archive: assets\favicon.svg"). Eliminated 8.3 short-path divergence by staging in `dist/_staging`.
+- **Mozilla AMO Addon Validator Compliance**: Restricted submodule packaging in `package.ps1` to the runtime theme directory (`vaultwares-themes/vaultsqware/`) only. Excluded demo and brand guide folders, eliminating a >5MB HTML parser rejection (`VaultWares Theme Library.html`) and TypeScript configuration files (`tsconfig.json`) containing `/*` block comments. Removed unused wildcard from `manifest.json`.
 
 ## [1.3.1] - Sat, 05 Sep 2026 07:51
 

@@ -87,7 +87,47 @@ foreach ($PkgPath in $Packages) {
                 $AllPassed = $false
             }
         }
-        Write-Host "[PASS] All essential extension entry points confirmed in archive." -ForegroundColor Green
+        # Check 5: File size limits (Mozilla AMO rule: no unparseable files > 5MB)
+        $OversizedFiles = @($Entries | Where-Object { $_.Length -gt 5MB })
+        if ($OversizedFiles.Count -gt 0) {
+            Write-Host "[FAIL] Found $($OversizedFiles.Count) files exceeding 5MB!" -ForegroundColor Red
+            $OversizedFiles | ForEach-Object { Write-Host "   Oversized: $($_.FullName) ($([math]::Round($_.Length / 1MB, 2)) MB)" -ForegroundColor Red }
+            $AllPassed = $false
+        } else {
+            Write-Host "[PASS] 0 files exceed 5MB. All archive files are within AMO parser limits." -ForegroundColor Green
+        }
+
+        # Check 6: JSON validation (Mozilla AMO rule: NO block comments /* in JSON)
+        $JsonEntries = @($Entries | Where-Object { $_.FullName -like "*.json" })
+        Write-Host "Checking $($JsonEntries.Count) JSON files for AMO compliance..."
+        foreach ($JEntry in $JsonEntries) {
+            $Stream = $JEntry.Open()
+            $Reader = New-Object System.IO.StreamReader($Stream)
+            $RawJson = $Reader.ReadToEnd()
+            $Reader.Dispose()
+            $Stream.Dispose()
+
+            # Strip string literals to avoid false positives on wildcards like "file:///*"
+            $WithoutStrings = [regex]::Replace($RawJson, '"(\\.|[^"\\])*"', '""')
+            if ($WithoutStrings -match "/\*") {
+                Write-Host "[FAIL] JSON contains block comment (/*): $($JEntry.FullName)" -ForegroundColor Red
+                $AllPassed = $false
+            }
+        }
+        Write-Host "[PASS] All JSON files verified free of block comments." -ForegroundColor Green
+
+        # Check 7: Submodule isolation (Only vaultsqware runtime present, examples/docs excluded)
+        $ThemeCss = $Entries | Where-Object { $_.FullName -eq "vaultwares-themes/vaultsqware/vaultsqware.css" } | Select-Object -First 1
+        $ExcludedThemeExample = $Entries | Where-Object { $_.FullName -like "*VaultWares Theme Library.html*" } | Select-Object -First 1
+        if (-not $ThemeCss) {
+            Write-Host "[FAIL] Required vaultsqware.css theme file missing from archive!" -ForegroundColor Red
+            $AllPassed = $false
+        } elseif ($ExcludedThemeExample) {
+            Write-Host "[FAIL] Brand guide / examples found in archive: $($ExcludedThemeExample.FullName)" -ForegroundColor Red
+            $AllPassed = $false
+        } else {
+            Write-Host "[PASS] Theme runtime present (vaultsqware.css), heavy brand guides and examples successfully excluded." -ForegroundColor Green
+        }
     }
     finally {
         $Zip.Dispose()

@@ -61,7 +61,6 @@
       "resources": [
         "assets/*",
         "assets/icons/*",
-        "vaultwares-themes/*",
         "vaultwares-themes/vaultsqware/*",
         "src/*",
         "src/app/*",

@@ -31,8 +31,13 @@ try {
     Copy-Item (Join-Path $ProjectRoot "manifest.json") $TempStage
     Copy-Item (Join-Path $ProjectRoot "assets") $TempStage -Recurse
     Copy-Item (Join-Path $ProjectRoot "src") $TempStage -Recurse
-    if (Test-Path (Join-Path $ProjectRoot "vaultwares-themes")) {
-        Copy-Item (Join-Path $ProjectRoot "vaultwares-themes") $TempStage -Recurse
+    # Only copy the runtime vaultsqware theme needed by the extension.
+    # Excludes external examples (>5MB HTML brand guides, tsconfig.json with block comments, etc.)
+    $VaultsqwareSource = Join-Path $ProjectRoot "vaultwares-themes\vaultsqware"
+    if (Test-Path $VaultsqwareSource) {
+        $VaultsqwareTargetParent = Join-Path $TempStage "vaultwares-themes"
+        New-Item -ItemType Directory -Path $VaultsqwareTargetParent -Force | Out-Null
+        Copy-Item $VaultsqwareSource $VaultsqwareTargetParent -Recurse
     }
 
     # Guarantee forward slashes ('/') in ZIP entry paths.
@@ -45,7 +50,10 @@ try {
     $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
 
     try {
-        Get-ChildItem -Path $StageRoot -Recurse -File | ForEach-Object {
+        Get-ChildItem -Path $StageRoot -Recurse -File | Where-Object {
+            $_.Name -notmatch '^(\.DS_Store|Thumbs\.db|desktop\.ini|\.git.*)$' -and
+            $_.Extension -notmatch '^\.(tmp|bak|log)$'
+        } | ForEach-Object {
             $fullPath = (Resolve-Path $_.FullName).Path
             $relPath = $fullPath.Substring($StageRoot.Length).TrimStart('\', '/')
             # Enforce forward slash path separators required by ZIP specification and Firefox nsZipArchive
