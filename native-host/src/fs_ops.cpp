@@ -1,5 +1,6 @@
 #include "fs_ops.hpp"
 #include "everything_client.hpp"
+#include "raggae_client.hpp"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -228,8 +229,12 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
     }
 
     // 1. Single Everything Batch Query for folder sizes (instant, depth=1)
+    //    vault-raggae's folder index first (it replaces Everything for sizes); Everything when it has nothing.
     std::unordered_map<std::wstring, uint64_t> batch_folder_sizes =
-        everything_client::get_directory_folder_sizes(wpath);
+        raggae_client::get_directory_folder_sizes(wpath);
+    if (batch_folder_sizes.empty()) {
+        batch_folder_sizes = everything_client::get_directory_folder_sizes(wpath);
+    }
 
     // 2. Check for .thumbs folder and pre-index thumb files in-memory
     fs::path thumbs_dir = dir_path / L".thumbs";

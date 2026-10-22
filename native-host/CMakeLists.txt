@@ -20,6 +20,7 @@ set(SOURCES
     src/protocol.cpp
     src/fs_ops.cpp
     src/everything_client.cpp
+    src/raggae_client.cpp
     src/http_server.cpp
     src/Everything.c
 )
@@ -32,4 +33,5 @@ target_link_libraries(browser_browser_host
     shell32
     ole32
     advapi32
+    winhttp
 )
