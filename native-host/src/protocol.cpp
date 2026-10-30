@@ -1,6 +1,6 @@
 #include "protocol.hpp"
 #include "fs_ops.hpp"
-#include "everything_client.hpp"
+#include "raggae_client.hpp"
 
 #include <iostream>
 #include <io.h>
@@ -59,9 +59,9 @@ nlohmann::json handle_request(const nlohmann::json& req, int http_port) {
         return {
             {"id", id},
             {"success", true},
-            {"version", "1.2.0"},
+            {"version", "1.5.0"},
             {"httpPort", http_port},
-            {"everythingAvailable", everything_client::is_available()}
+            {"raggaeAvailable", raggae_client::is_available()}
         };
     }
 
@@ -97,17 +97,6 @@ nlohmann::json handle_request(const nlohmann::json& req, int http_port) {
         return {
             {"id", id},
             {"success", ok}
-        };
-    }
-
-    if (action == "search") {
-        std::string query = req.value("query", "");
-        uint32_t max_results = req.value("maxResults", 100);
-        auto results = everything_client::search(fs_ops::utf8_to_wide(query), max_results);
-        return {
-            {"id", id},
-            {"success", true},
-            {"results", results}
         };
     }
 

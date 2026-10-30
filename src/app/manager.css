@@ -141,11 +141,12 @@
   font-size: 11px;
 }
 
-/* Thumbnail preview and type badge styles */
+/* Thumbnail preview and type badge styles 
 .vwsq-card-preview.has-thumbnail {
   position: relative;
   overflow: hidden;
 }
+*/
 
 .vwsq-card-preview img.vwsq-thumb-img {
   width: 100%;
@@ -161,8 +162,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 10px;
-  z-index: 2;
+  border-radius: 16px;
+  z-index: 1;
   display: none;
 }
 

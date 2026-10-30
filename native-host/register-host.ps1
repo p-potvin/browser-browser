@@ -23,7 +23,7 @@ if (-not (Test-Path $releaseExe)) {
 Write-Host "=== Updating Native Host Manifest ===" -ForegroundColor Cyan
 $manifest = @{
     name = "browser_browser_host"
-    description = "browser-browser C++ Native Messaging Host for Local Files, Everything Search, and Media Streaming"
+    description = "browser-browser C++ Native Messaging Host for Local Files, vault-raggae Folder Sizes, and Media Streaming"
     path = (Resolve-Path $releaseExe).Path
     type = "stdio"
     allowed_extensions = @("browser-browser@vaultwares.internal")

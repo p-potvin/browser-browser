@@ -49,7 +49,7 @@ export class AppManager {
     // Native Messaging Host State
     this.isNativeMode = false;
     this.httpPort = 45123;
-    this.everythingAvailable = false;
+    this.raggaeAvailable = false;
     this.drives = [];
     this.currentParentPath = null;
   }
@@ -86,7 +86,7 @@ export class AppManager {
         if (pingResp && pingResp.success) {
           this.isNativeMode = true;
           this.httpPort = pingResp.httpPort || 45123;
-          this.everythingAvailable = pingResp.everythingAvailable || false;
+          this.raggaeAvailable = pingResp.raggaeAvailable || false;
 
           // Fetch real physical drives
           const drivesResp = await browser.runtime.sendMessage({ action: 'nativeGetDrives' });
@@ -771,7 +771,7 @@ export class AppManager {
     }
     if (statusSummaryEl) {
       if (this.isNativeMode) {
-        const ev = this.everythingAvailable ? ' • Everything IPC active' : '';
+        const ev = this.raggaeAvailable ? ' • vault-raggae folder sizes' : ' • no folder sizes (vault-raggae down)';
         statusSummaryEl.textContent = `NATIVE HOST (Port ${this.httpPort}${ev}) • ${this.currentPath}`;
       } else if (this.vfs.allFilesCount > 0) {
         statusSummaryEl.textContent = `${formatBytes(this.vfs.totalSizeBytes)} total • ${this.vfs.rootName}`;

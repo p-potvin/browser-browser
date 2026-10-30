@@ -1,11 +1,12 @@
 # Comprehensive Real-Conditions Verification Test for browser-browser
-# Tests persistent native messaging, Everything batch folder sizing,
-# .thumbs image and hover WebM resolution, sidecars detection, HTTP streaming,
-# and glob exclusions & sorting.
+# Tests persistent native messaging, folder sizing, .thumbs image and hover WebM
+# resolution, sidecars detection (vault-raggae's canonical and legacy names),
+# HTTP streaming, and glob exclusions & sorting.
+# $env:BB_HOST_EXE overrides the host executable (e.g. a build-check output).
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Resolve-Path "$PSScriptRoot\.."
-$HostExe = "$RepoRoot\native-host\build\Release\browser_browser_host.exe"
+$HostExe = if ($env:BB_HOST_EXE) { $env:BB_HOST_EXE } else { "$RepoRoot\native-host\build\Release\browser_browser_host.exe" }
 
 Write-Host "========================================================" -ForegroundColor Cyan
 Write-Host " REAL-CONDITIONS REGRESSION & FEATURE VERIFICATION SUITE" -ForegroundColor Cyan
@@ -37,6 +38,17 @@ New-Item -ItemType Directory -Path $SubDir -Force | Out-Null
 [System.IO.File]::WriteAllBytes($ThumbWebm, [System.Text.Encoding]::UTF8.GetBytes("FAKE_WEBM_VIDEO_PREVIEW_CLUSTER_DATA"))
 Set-Content -Path $SidecarNfo -Value "<movie><title>Vacation 2026</title><runtime>42</runtime></movie>" -Encoding utf8
 Set-Content -Path $SidecarJson -Value '{"title":"Vacation 2026","resolution":"4K","codec":"h264"}' -Encoding utf8
+
+# vault-raggae layout: canonical <file.ext>.json records, companions, and a video beside its poster
+$RaggaeDir = "$TestDir\raggae_layout"
+New-Item -ItemType Directory -Path "$RaggaeDir\.thumbs" -Force | Out-Null
+foreach ($name in @("show.mp4", "clip.mp4", "clip.jpg", "only_enhanced.mkv", ".thumbs\show.jpg", ".thumbs\show.webm",
+                    ".thumbs\clip.jpg", ".thumbs\only_enhanced_enhanced.jpg", "show.en.srt", "show.srt", "orphan.srt",
+                    "show.tags.json", "clip.json")) {
+    [System.IO.File]::WriteAllBytes("$RaggaeDir\$name", [System.Text.Encoding]::UTF8.GetBytes("X"))
+}
+Set-Content -Path "$RaggaeDir\show.mp4.json" -Value '{"schema":2,"vw":{"kind":"video","id":"01TEST"}}' -Encoding utf8
+Set-Content -Path "$RaggaeDir\clip.mp4.json" -Value '{"schema":2,"vw":{"kind":"video","id":"01CLIP"}}' -Encoding utf8
 
 Write-Host "`n=== TEST SETUP CREATED ===" -ForegroundColor Yellow
 Write-Host "Test directory: $TestDir"
@@ -121,6 +133,24 @@ try {
         Write-Host "[PASS] isSidecar flag is True for .nfo and .json files" -ForegroundColor Green
     } else {
         Write-Error "[FAIL] isSidecar flag failed: nfo=$($nfoItem.isSidecar), json=$($jsonItem.isSidecar)"
+    }
+
+    Write-Host "`n=== 2b. VAULT-RAGGAE SIDECARS & .THUMBS COMPANIONS ===" -ForegroundColor Yellow
+    $rgResp = Send-NativeMessage @{ action = "list_dir"; path = $RaggaeDir; id = 103 }
+    $rg = @{}; foreach ($it in $rgResp.items) { $rg[$it.name] = $it }
+    $checks = [ordered]@{
+        "show.mp4 record is show.mp4.json"           = ($rg["show.mp4"].recordUrl -like "*show.mp4.json")
+        "show.mp4 owns tags + 2 subtitles"           = ((@($rg["show.mp4"].sidecars | ForEach-Object role) -join ",") -eq "record,tags,subtitle,subtitle")
+        "show.mp4 thumb + hover from .thumbs"        = ($rg["show.mp4"].thumbUrl -like "*show.jpg" -and $rg["show.mp4"].videoPreviewUrl -like "*show.webm")
+        "canonical sidecars hidden as sidecars"      = ($rg["show.mp4.json"].isSidecar -and $rg["show.en.srt"].isSidecar -and $rg["show.tags.json"].isSidecar)
+        "clip.json ambiguous (clip.mp4 + clip.jpg)"  = (-not $rg["clip.json"].isSidecar)
+        "clip.mp4 takes .thumbs/clip.jpg"            = ($rg["clip.mp4"].thumbUrl -like "*clip.jpg")
+        "clip.jpg poster does not take video thumb"  = (-not $rg["clip.jpg"].hasThumb)
+        "_enhanced thumb used when plain is missing" = ($rg["only_enhanced.mkv"].thumbUrl -like "*only_enhanced_enhanced.jpg")
+        "orphan subtitle stays visible"              = (-not $rg["orphan.srt"].isSidecar)
+    }
+    foreach ($k in $checks.Keys) {
+        if ($checks[$k]) { Write-Host "[PASS] $k" -ForegroundColor Green } else { Write-Error "[FAIL] $k" }
     }
 
     Write-Host "`n=== 3. REAL HTTP STREAMING (IMAGE, WEBM, VIDEO RANGE, SIDECAR) ===" -ForegroundColor Yellow

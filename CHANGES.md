@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.5.0] - Fri, 30 Oct 2026 16:05
+
+### Changed
+- **vault-raggae sidecars**: `list_dir` (native host) and the folder-picker VFS (`src/common/companions.js`) link sidecars by vault-raggae's rules: the canonical `<file.ext>.json` record first, then `<file.ext>.meta.json`, then `<stem>.json` / `<stem>.meta.json` only when no other media file shares the stem; plus `.tags.json`, `.identities.json`, `<stem>.<lang>.srt|vtt`, `.nfo`, `.vsmeta`. Each sidecar carries a `role`, each item a `recordUrl`. Previously the canonical names never matched (stem split on the last dot only).
+- **.thumbs companions**: `<stem>.jpg`, then `<stem>_enhanced.jpg`, legacy `<file.ext>.jpg`; hover `<stem>.webm`. A picture sharing its stem with a video (poster beside `clip.mp4`) no longer takes the video's thumb.
+- **Properties → Sidecars**: role labels on each sidecar; a summary block above the raw JSON for v2 records.
+
+### Removed
+- **Everything Search**: IPC client, SDK sources, the unused `search` action and `nativeSearch` message, and the folder-sizing setting. Folder sizes come only from vault-raggae's folder index; `ping` reports `raggaeAvailable`.
+
 ## [1.3.2] - Tue, 06 Oct 2026 15:58
 
 ### Fixed

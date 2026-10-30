@@ -20,7 +20,7 @@ std::string get_file_type_category(const std::string& filename, bool is_dir);
 // Enumerate all logical Windows drives with capacity, free space, and volume labels
 nlohmann::json get_drives();
 
-// Enumerate files/folders in path, check .thumbs, query Everything folder sizes
+// Enumerate files/folders in path: folder sizes from vault-raggae, .thumbs companions, sidecars per vault-raggae's rules
 nlohmann::json list_dir(const std::string& path_utf8, int http_port);
 
 // Launch file with default system handler via ShellExecuteW

@@ -1,6 +1,6 @@
 ﻿{
     "path":  "C:\\Users\\Administrator\\Desktop\\Github Repos\\browser-browser\\native-host\\build\\Release\\browser_browser_host.exe",
-    "description":  "browser-browser C++ Native Messaging Host for Local Files, Everything Search, and Media Streaming",
+    "description":  "browser-browser C++ Native Messaging Host for Local Files, vault-raggae Folder Sizes, and Media Streaming",
     "name":  "browser_browser_host",
     "allowed_extensions":  [
                                "browser-browser@vaultwares.internal"

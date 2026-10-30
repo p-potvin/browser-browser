@@ -108,4 +108,19 @@ for (let i = 0; i < 10; i++) {
 assert.strictEqual(vfs.objectUrls.length, initialUrlCount, `objectUrls array must not grow on repeat getItems calls (was ${vfs.objectUrls.length}, expected ${initialUrlCount})`);
 console.log(`[PASS] Memory leak check: URL count remained constant at ${vfs.objectUrls.length} across 30 repeated navigations`);
 
-console.log('\n>>> ALL 7 VFS TESTS PASSED SUCCESSFULLY! <<<\n');
+// Test 8: vault-raggae sidecars and .thumbs companions
+const rgVfs = new VirtualFileSystem();
+rgVfs.loadFromFileList(['show.mp4', 'show.mp4.json', 'show.tags.json', 'show.en.srt', 'clip.mp4', 'clip.jpg',
+  'clip.json', 'orphan.srt', '.thumbs/show.jpg', '.thumbs/show.webm', '.thumbs/clip.jpg']
+  .map(p => new MockFile(p.split('/').pop(), `Lib/${p}`)));
+const rg = Object.fromEntries(rgVfs.getItems('').map(i => [i.name, i]));
+assert.deepStrictEqual(rg['show.mp4'].sidecars.map(s => s.role), ['record', 'tags', 'subtitle']);
+assert.strictEqual(rg['show.mp4'].recordUrl, rg['show.mp4'].sidecars[0].streamUrl);
+assert.ok(rg['show.mp4'].thumbJpgUrl && rg['show.mp4'].thumbWebmUrl, 'show.mp4 resolves .thumbs jpg + webm');
+assert.ok(rg['show.mp4.json'].isSidecar && rg['show.en.srt'].isSidecar);
+assert.ok(!rg['clip.json'].isSidecar, 'clip.json is ambiguous between clip.mp4 and clip.jpg');
+assert.ok(rg['clip.mp4'].thumbJpgUrl && !rg['clip.jpg'].thumbJpgUrl, 'the poster does not take the video thumb');
+assert.ok(!rg['orphan.srt'].isSidecar);
+console.log('[PASS] vault-raggae sidecars (canonical, stem-ambiguous, subtitles) and .thumbs companions');
+
+console.log('\n>>> ALL 8 VFS TESTS PASSED SUCCESSFULLY! <<<\n');

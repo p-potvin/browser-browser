@@ -102,16 +102,7 @@ export class SettingsModal {
         <input type="checkbox" id="vwsq-setting-hide-sidecars" ${settings.hideSidecars !== false ? 'checked' : ''} style="accent-color: var(--vwsq-iris-500); width: 16px; height: 16px;" />
         <div>
           <div style="font-size: 13px; font-weight: 500; color: var(--vwsq-console-text-bright);">Hide Sidecars from Main Grid / Table</div>
-          <div style="font-size: 11px; color: var(--vwsq-console-text-dim);">When enabled, sidecar files (.nfo, .json, .srt) are hidden and linked directly to their parent media files.</div>
-        </div>
-      </label>
-
-      <!-- Everything IPC Folder Sizing -->
-      <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-        <input type="checkbox" id="vwsq-setting-everything-size" ${settings.enableEverythingFolderSize !== false ? 'checked' : ''} style="accent-color: var(--vwsq-iris-500); width: 16px; height: 16px;" />
-        <div>
-          <div style="font-size: 13px; font-weight: 500; color: var(--vwsq-console-text-bright);">Everything Search Instant Folder Sizing</div>
-          <div style="font-size: 11px; color: var(--vwsq-console-text-dim);">Fetches instant directory sizes in a single batch IPC query from Everything Search index.</div>
+          <div style="font-size: 11px; color: var(--vwsq-console-text-dim);">When enabled, sidecar files (clip.mp4.json records, .tags.json, .srt, .nfo) are hidden and linked directly to their parent media files.</div>
         </div>
       </label>
 
@@ -156,7 +147,6 @@ export class SettingsModal {
       const folderRaw = body.querySelector('#vwsq-setting-folder-exclusions').value;
       const fileRaw = body.querySelector('#vwsq-setting-file-exclusions').value;
       const hideSidecars = body.querySelector('#vwsq-setting-hide-sidecars').checked;
-      const everythingSize = body.querySelector('#vwsq-setting-everything-size').checked;
       const defaultView = body.querySelector('#vwsq-setting-default-view').value;
 
       const folderExclusions = folderRaw.split(',').map(s => s.trim()).filter(Boolean);
@@ -166,7 +156,6 @@ export class SettingsModal {
         folderExclusions,
         fileExclusions,
         hideSidecars,
-        enableEverythingFolderSize: everythingSize,
         defaultView
       });
 

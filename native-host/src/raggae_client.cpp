@@ -60,6 +60,10 @@ std::string http_get(const std::wstring& path) {
 
 } // namespace
 
+bool is_available() {
+    return !http_get(L"/v1/health").empty();
+}
+
 std::unordered_map<std::wstring, uint64_t> get_directory_folder_sizes(const std::wstring& dir_path) {
     std::unordered_map<std::wstring, uint64_t> sizes;
     std::string route = "/v1/files/sizes?limit=5000&path=" + url_encode(fs_ops::wide_to_utf8(dir_path));

@@ -1,5 +1,4 @@
 #include "fs_ops.hpp"
-#include "everything_client.hpp"
 #include "raggae_client.hpp"
 
 #include <windows.h>
@@ -57,9 +56,9 @@ std::string get_file_type_category(const std::string& filename, bool is_dir) {
 
     // Categories
     if (ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif" || ext == "webp" ||
-        ext == "bmp" || ext == "svg" || ext == "ico" || ext == "avif") return "image";
+        ext == "bmp" || ext == "svg" || ext == "ico" || ext == "avif" || ext == "tiff") return "image";
     if (ext == "mp4" || ext == "webm" || ext == "mkv" || ext == "avi" || ext == "mov" ||
-        ext == "wmv" || ext == "flv") return "video";
+        ext == "wmv" || ext == "flv" || ext == "m4v") return "video";
     if (ext == "mp3" || ext == "wav" || ext == "flac" || ext == "ogg" || ext == "m4a" ||
         ext == "aac" || ext == "opus") return "audio";
     if (ext == "zip" || ext == "rar" || ext == "7z" || ext == "tar" || ext == "gz" ||
@@ -203,6 +202,17 @@ static std::string format_filetime(const FILETIME& ft) {
     return std::string(buf);
 }
 
+// Lowercase copy, for case-insensitive name matching (NTFS names compare case-insensitively)
+static std::wstring to_lower(std::wstring s) {
+    std::transform(s.begin(), s.end(), s.begin(), ::towlower);
+    return s;
+}
+
+// Masters for sidecar purposes: vault-raggae's MEDIA_EXTENSIONS, by category
+static bool is_media(const std::string& category) {
+    return category == "video" || category == "image" || category == "audio";
+}
+
 nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
     std::wstring wpath = normalize_input_path(path_utf8);
     std::string clean_path_utf8 = wide_to_utf8(wpath);
@@ -228,44 +238,41 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
         result["parent_path"] = wide_to_utf8(dir_path.parent_path().wstring());
     }
 
-    // 1. Single Everything Batch Query for folder sizes (instant, depth=1)
-    //    vault-raggae's folder index first (it replaces Everything for sizes); Everything when it has nothing.
+    // 1. Folder sizes from vault-raggae's folder index (MFT + USN journal); none when the gateway is down.
     std::unordered_map<std::wstring, uint64_t> batch_folder_sizes =
         raggae_client::get_directory_folder_sizes(wpath);
-    if (batch_folder_sizes.empty()) {
-        batch_folder_sizes = everything_client::get_directory_folder_sizes(wpath);
-    }
 
     // 2. Check for .thumbs folder and pre-index thumb files in-memory
     fs::path thumbs_dir = dir_path / L".thumbs";
     bool thumbs_exist = fs::exists(thumbs_dir, ec) && fs::is_directory(thumbs_dir, ec);
     result["has_thumbs"] = thumbs_exist;
 
-    std::unordered_set<std::wstring> thumbs_set;
+    std::unordered_map<std::wstring, std::wstring> thumbs_set; // lowercased name -> name on disk
     if (thumbs_exist) {
         fs::directory_iterator thumbs_iter(thumbs_dir, fs::directory_options::skip_permission_denied, ec);
         fs::directory_iterator thumbs_end;
         while (thumbs_iter != thumbs_end && !ec) {
             std::wstring tname = thumbs_iter->path().filename().wstring();
-            std::transform(tname.begin(), tname.end(), tname.begin(), ::towlower);
-            thumbs_set.insert(tname);
+            thumbs_set[to_lower(tname)] = tname;
             thumbs_iter.increment(ec);
         }
     }
 
-    // 3. First pass: Collect all direct children to find sidecar files
+    // 3. First pass: collect the direct children
     struct RawEntry {
         fs::path path;
-        std::wstring filename_w;
-        std::wstring stem_w;
+        std::wstring lower_name;
+        std::wstring lower_stem;
         std::string filename_utf8;
         std::string ext;
+        std::string category;
         bool is_dir;
     };
 
     std::vector<RawEntry> raw_entries;
-    std::unordered_map<std::wstring, std::vector<std::pair<std::string, std::string>>> sidecars_by_stem; // stem_lower -> [(name, path)]
-    std::unordered_set<std::wstring> media_stems;
+    std::unordered_map<std::wstring, size_t> file_index;   // lowercased file name -> raw_entries index
+    std::unordered_map<std::wstring, int> media_per_stem;  // lowercased stem -> media files sharing it
+    std::unordered_set<std::wstring> video_stems;
 
     fs::directory_iterator iter(dir_path, fs::directory_options::skip_permission_denied, ec);
     fs::directory_iterator end_iter;
@@ -279,7 +286,6 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
 
         bool is_dir = iter->is_directory(ec);
         std::string fn_utf8 = wide_to_utf8(fn_w);
-        std::wstring stem_w = iter->path().stem().wstring();
         std::wstring ext_w = iter->path().extension().wstring();
         std::string ext = "";
         if (!ext_w.empty() && ext_w[0] == L'.') {
@@ -288,26 +294,99 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
         }
 
         std::string cat = get_file_type_category(fn_utf8, is_dir);
-        std::wstring lower_stem = stem_w;
-        std::transform(lower_stem.begin(), lower_stem.end(), lower_stem.begin(), ::towlower);
+        std::wstring lower_name = to_lower(fn_w);
+        std::wstring lower_stem = is_dir ? lower_name : to_lower(iter->path().stem().wstring());
 
-        if (!is_dir && (cat == "video" || cat == "audio" || cat == "image")) {
-            media_stems.insert(lower_stem);
+        if (!is_dir) {
+            file_index[lower_name] = raw_entries.size();
+            if (is_media(cat)) media_per_stem[lower_stem]++;
+            if (cat == "video") video_stems.insert(lower_stem);
         }
-
-        raw_entries.push_back({ iter->path(), fn_w, stem_w, fn_utf8, ext, is_dir });
-
-        // Record sidecar candidates (.nfo, .json, .srt, .vsmeta, .sub, .idx)
-        if (!is_dir && (ext == "nfo" || ext == "json" || ext == "srt" || ext == "vsmeta" || ext == "sub" || ext == "idx")) {
-            sidecars_by_stem[lower_stem].push_back({ fn_utf8, wide_to_utf8(iter->path().wstring()) });
-        }
+        raw_entries.push_back({ iter->path(), lower_name, lower_stem, fn_utf8, ext, cat, is_dir });
 
         iter.increment(ec);
     }
 
+    // 4. Sidecars and companions, by vault-raggae's rules (app/files/records/sidecar_names.py, scan.py COMPANION_RULES).
+    //    Record sidecars, in trust order: <file.ext>.json (canonical), <file.ext>.meta.json, then the stem forms
+    //    <stem>.json and <stem>.meta.json, which count only when no other media file shares the stem (clip.mp4 beside
+    //    clip.jpg: a clip.json belongs to neither). Each file is claimed by one master at most.
+    struct Companion { size_t idx; std::string role; };
+    std::vector<std::vector<Companion>> companions(raw_entries.size());
+    std::vector<bool> claimed(raw_entries.size(), false);
+
+    auto claim = [&](size_t master, const std::wstring& lower_name, const char* role) {
+        auto it = file_index.find(lower_name);
+        if (it == file_index.end() || it->second == master || claimed[it->second]) return;
+        claimed[it->second] = true;
+        companions[master].push_back({ it->second, role });
+    };
+
+    for (size_t i = 0; i < raw_entries.size(); ++i) {
+        const auto& re = raw_entries[i];
+        if (re.is_dir || !is_media(re.category)) continue;
+        const std::wstring& n = re.lower_name;
+        const std::wstring& s = re.lower_stem;
+        bool stem_ambiguous = media_per_stem[s] > 1;
+
+        claim(i, n + L".json", "record");
+        claim(i, n + L".meta.json", "record");
+        if (!stem_ambiguous) {
+            claim(i, s + L".json", "record");
+            claim(i, s + L".meta.json", "record");
+        }
+        claim(i, s + L".tags.json", "tags");
+        claim(i, s + L".identities.json", "identities");
+        claim(i, s + L".nfo", "nfo");
+        claim(i, n + L".vsmeta", "vsmeta");
+        claim(i, s + L".sub", "subtitle");
+        claim(i, s + L".idx", "subtitle");
+    }
+
+    // Subtitles: <stem>.srt / <stem>.<lang>.srt (and .vtt), matched from the subtitle's side so a folder of
+    // a thousand episodes is not a thousand-squared scan. A video owns its subtitles before any other master.
+    std::unordered_map<std::wstring, size_t> master_by_stem;
+    for (size_t i = 0; i < raw_entries.size(); ++i) {
+        const auto& re = raw_entries[i];
+        if (re.is_dir || !is_media(re.category)) continue;
+        auto it = master_by_stem.find(re.lower_stem);
+        if (it == master_by_stem.end() || (re.category == "video" && raw_entries[it->second].category != "video")) {
+            master_by_stem[re.lower_stem] = i;
+        }
+    }
+    for (size_t i = 0; i < raw_entries.size(); ++i) {
+        const auto& re = raw_entries[i];
+        if (re.is_dir || claimed[i] || (re.ext != "srt" && re.ext != "vtt")) continue;
+        std::wstring base = re.lower_stem;                   // "clip.en" for clip.en.srt
+        auto it = master_by_stem.find(base);
+        if (it == master_by_stem.end()) {
+            size_t dot = base.find_last_of(L'.');
+            if (dot != std::wstring::npos) it = master_by_stem.find(base.substr(0, dot));
+        }
+        if (it != master_by_stem.end()) {
+            claimed[i] = true;
+            companions[it->second].push_back({ i, "subtitle" });
+        }
+    }
+
+    auto stream_url_for = [&](const std::wstring& p) {
+        return "http://127.0.0.1:" + std::to_string(http_port) + "/stream?path=" + url_encode(wide_to_utf8(p));
+    };
+
+    // .thumbs/<stem>.jpg, <stem>_enhanced.jpg and <stem>.webm are a master's companions; the legacy <file.ext>.jpg
+    // and other image types still resolve. Returns the first candidate present.
+    auto find_thumb = [&](const std::vector<std::wstring>& cands) -> std::string {
+        for (const auto& cand : cands) {
+            auto it = thumbs_set.find(cand);
+            if (it != thumbs_set.end()) return stream_url_for((thumbs_dir / it->second).wstring());
+        }
+        return "";
+    };
+
     nlohmann::json items = nlohmann::json::array();
 
-    for (const auto& re : raw_entries) {
+    for (size_t i = 0; i < raw_entries.size(); ++i) {
+        const auto& re = raw_entries[i];
         std::wstring entry_wpath = re.path.wstring();
         bool is_dir = re.is_dir;
         uint64_t file_size = 0;
@@ -330,105 +409,42 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
             }
         }
 
-        std::string category = get_file_type_category(re.filename_utf8, is_dir);
-
-        // If directory, lookup size from batch Everything query (O(1))
+        // If directory, lookup size from the folder index batch (O(1))
         if (is_dir) {
-            std::wstring lower_name = re.filename_w;
-            std::transform(lower_name.begin(), lower_name.end(), lower_name.begin(), ::towlower);
-            auto sz_it = batch_folder_sizes.find(lower_name);
+            auto sz_it = batch_folder_sizes.find(re.lower_name);
             if (sz_it != batch_folder_sizes.end() && sz_it->second > 0) {
                 file_size = sz_it->second;
                 size_str = format_bytes(file_size);
             }
         }
 
-        // Thumbnails matching from in-memory set
-        bool item_has_thumb = false;
-        bool item_has_video = false;
-        std::string thumb_url = "";
-        std::string video_url = "";
-
-        if (thumbs_exist) {
-            std::wstring lower_stem = re.stem_w;
-            std::transform(lower_stem.begin(), lower_stem.end(), lower_stem.begin(), ::towlower);
-
-            std::wstring lower_fn = re.filename_w;
-            std::transform(lower_fn.begin(), lower_fn.end(), lower_fn.begin(), ::towlower);
-
-            // Image candidates: stem.jpg, fn.jpg, stem.jpeg, stem.png, stem.webp
-            std::vector<std::wstring> img_cands = {
-                lower_stem + L".jpg",
-                lower_fn + L".jpg",
-                lower_stem + L".jpeg",
-                lower_fn + L".jpeg",
-                lower_stem + L".png",
-                lower_fn + L".png",
-                lower_stem + L".webp",
-                lower_fn + L".webp"
-            };
-
-            for (const auto& cand : img_cands) {
-                if (thumbs_set.find(cand) != thumbs_set.end()) {
-                    item_has_thumb = true;
-                    fs::path thumb_file = thumbs_dir / cand;
-                    thumb_url = "http://127.0.0.1:" + std::to_string(http_port) +
-                                "/stream?path=" + url_encode(wide_to_utf8(thumb_file.wstring()));
-                    break;
-                }
-            }
-
-            // Video preview candidates: stem.webm, fn.webm, stem.mp4, fn.mp4
-            std::vector<std::wstring> vid_cands = {
-                lower_stem + L".webm",
-                lower_fn + L".webm",
-                lower_stem + L".mp4",
-                lower_fn + L".mp4"
-            };
-
-            for (const auto& cand : vid_cands) {
-                if (thumbs_set.find(cand) != thumbs_set.end()) {
-                    item_has_video = true;
-                    fs::path vid_file = thumbs_dir / cand;
-                    video_url = "http://127.0.0.1:" + std::to_string(http_port) +
-                                "/stream?path=" + url_encode(wide_to_utf8(vid_file.wstring()));
-                    break;
-                }
-            }
+        // Thumbnails from .thumbs. A picture sharing its stem with a video (clip.jpg beside clip.mp4) does not
+        // take the video's thumb: it is shown as itself.
+        std::string thumb_url;
+        std::string video_url;
+        bool thumbs_apply = thumbs_exist && !claimed[i] &&
+                            !(re.category == "image" && video_stems.count(re.lower_stem));
+        if (thumbs_apply) {
+            const std::wstring& s = re.lower_stem;
+            const std::wstring& n = re.lower_name;
+            thumb_url = find_thumb({ s + L".jpg", s + L"_enhanced.jpg", n + L".jpg", s + L".jpeg",
+                                     s + L".png", s + L".webp" });
+            video_url = find_thumb({ s + L".webm", n + L".webm", s + L".mp4" });
         }
 
-        // Direct media stream URL
-        std::string stream_url = "http://127.0.0.1:" + std::to_string(http_port) +
-                                 "/stream?path=" + url_encode(wide_to_utf8(entry_wpath));
-
-        // Sidecars attached to this file
+        // Sidecars attached to this file, record first
         nlohmann::json item_sidecars = nlohmann::json::array();
-        std::wstring lower_stem = re.stem_w;
-        std::transform(lower_stem.begin(), lower_stem.end(), lower_stem.begin(), ::towlower);
-        auto sc_it = sidecars_by_stem.find(lower_stem);
-        if (sc_it != sidecars_by_stem.end()) {
-            for (const auto& sc : sc_it->second) {
-                if (sc.first != re.filename_utf8) { // Do not attach file to itself
-                    item_sidecars.push_back({
-                        {"name", sc.first},
-                        {"path", sc.second},
-                        {"streamUrl", "http://127.0.0.1:" + std::to_string(http_port) +
-                                      "/stream?path=" + url_encode(sc.second)}
-                    });
-                }
-            }
-        }
-
-        bool is_sidecar = false;
-        if (!is_dir) {
-            std::wstring lower_stem = re.stem_w;
-            std::transform(lower_stem.begin(), lower_stem.end(), lower_stem.begin(), ::towlower);
-            bool matches_media = (media_stems.find(lower_stem) != media_stems.end());
-            if (re.ext == "nfo" || re.ext == "srt" || re.ext == "vsmeta" || re.ext == "sub" || re.ext == "idx") {
-                is_sidecar = true;
-            } else if (re.ext == "json" && matches_media) {
-                is_sidecar = true;
-            }
+        std::string record_url;
+        for (const auto& c : companions[i]) {
+            const auto& sc = raw_entries[c.idx];
+            std::string sc_url = stream_url_for(sc.path.wstring());
+            if (c.role == "record" && record_url.empty()) record_url = sc_url;
+            item_sidecars.push_back({
+                {"name", sc.filename_utf8},
+                {"path", wide_to_utf8(sc.path.wstring())},
+                {"role", c.role},
+                {"streamUrl", sc_url}
+            });
         }
 
         nlohmann::json item_obj = {
@@ -441,14 +457,15 @@ nlohmann::json list_dir(const std::string& path_utf8, int http_port) {
             {"dateModified", mod_time_str},
             {"dateCreated", create_time_str},
             {"extension", re.ext},
-            {"category", category},
-            {"hasThumb", item_has_thumb},
+            {"category", re.category},
+            {"hasThumb", !thumb_url.empty()},
             {"thumbUrl", thumb_url},
-            {"hasVideoPreview", item_has_video},
+            {"hasVideoPreview", !video_url.empty()},
             {"videoPreviewUrl", video_url},
-            {"streamUrl", stream_url},
-            {"isSidecar", is_sidecar},
-            {"sidecars", item_sidecars}
+            {"streamUrl", stream_url_for(entry_wpath)},
+            {"isSidecar", static_cast<bool>(claimed[i])},
+            {"sidecars", item_sidecars},
+            {"recordUrl", record_url}
         };
 
         items.push_back(item_obj);

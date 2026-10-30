@@ -128,13 +128,6 @@ if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.onMessa
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
     }
-
-    if (message.action === 'nativeSearch') {
-      callNativeHost({ action: 'search', query: message.query || '', maxResults: message.maxResults || 100, id: Date.now() })
-        .then(resp => sendResponse(resp))
-        .catch(err => sendResponse({ success: false, error: err.message }));
-      return true;
-    }
   });
 }
 

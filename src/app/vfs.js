@@ -4,6 +4,7 @@
  */
 
 import { formatBytes, formatDate, getFileTypeCategory } from '../common/utils.js';
+import { resolveCompanions, thumbCandidates } from '../common/companions.js';
 
 export class VirtualFileSystem {
   constructor() {
@@ -196,48 +197,29 @@ export class VirtualFileSystem {
       });
     }
 
-    // 3. Files with thumbnail & webm resolution
+    // 3. Files with sidecars and .thumbs companions (vault-raggae's rules, see common/companions.js)
+    const { companions, claimed, videoStems } = resolveCompanions([...folder.files.keys()]);
+    const firstThumb = (cands) => {
+      const hit = cands.find(c => folder.thumbs.has(c));
+      return hit ? this.createTrackedUrl(folder.thumbs.get(hit)) : null;
+    };
+
     for (const [fileName, file] of folder.files.entries()) {
       const isDir = false;
       const ext = (fileName.split('.').pop() || '').toLowerCase();
-      const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
-      const lowerBase = baseName.toLowerCase();
-      const lowerFull = fileName.toLowerCase();
+      const isSidecar = claimed.has(fileName);
 
-      // Look up thumbnails in .thumbs map
-      let thumbJpgUrl = null;
-      let thumbWebmUrl = null;
+      const thumbs = isSidecar ? { image: [], video: [] } : thumbCandidates(fileName, videoStems);
+      const thumbJpgUrl = firstThumb(thumbs.image);
+      const thumbWebmUrl = firstThumb(thumbs.video);
 
-      // Check image thumbnail candidates
-      const imgCandidates = [
-        `${lowerBase}.jpg`,
-        `${lowerFull}.jpg`,
-        `${lowerBase}.jpeg`,
-        `${lowerFull}.jpeg`,
-        `${lowerBase}.png`,
-        `${lowerFull}.png`,
-        `${lowerBase}.webp`
-      ];
-      for (const cand of imgCandidates) {
-        if (folder.thumbs.has(cand)) {
-          thumbJpgUrl = this.createTrackedUrl(folder.thumbs.get(cand));
-          break;
-        }
-      }
-
-      // Check video preview candidates (.webm / .mp4)
-      const vidCandidates = [
-        `${lowerBase}.webm`,
-        `${lowerFull}.webm`,
-        `${lowerBase}.mp4`,
-        `${lowerFull}.mp4`
-      ];
-      for (const cand of vidCandidates) {
-        if (folder.thumbs.has(cand)) {
-          thumbWebmUrl = this.createTrackedUrl(folder.thumbs.get(cand));
-          break;
-        }
-      }
+      const sidecars = (companions.get(fileName) || []).map(sc => ({
+        name: sc.name,
+        role: sc.role,
+        path: normPath ? `${normPath}/${sc.name}` : sc.name,
+        streamUrl: this.createTrackedUrl(folder.files.get(sc.name))
+      }));
+      const record = sidecars.find(sc => sc.role === 'record');
 
       // Fallback for native images if no .thumbs exists
       const category = getFileTypeCategory(fileName, isDir);
@@ -256,7 +238,10 @@ export class VirtualFileSystem {
         category,
         file,
         thumbJpgUrl,
-        thumbWebmUrl
+        thumbWebmUrl,
+        isSidecar,
+        sidecars,
+        recordUrl: record ? record.streamUrl : ''
       });
     }
 

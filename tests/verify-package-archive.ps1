@@ -8,9 +8,11 @@ $DistPath = Join-Path $ProjectRoot "dist"
 
 Write-Host "=== VERIFYING WEBEXTENSION PACKAGES UNDER REAL CONDITIONS ===" -ForegroundColor Cyan
 
+# The packages scripts/package.ps1 built for the manifest's current version
+$Version = (Get-Content (Join-Path $ProjectRoot "manifest.json") -Raw | ConvertFrom-Json).version
 $Packages = @(
-    (Join-Path $DistPath "browser-browser-1.3.2.zip"),
-    (Join-Path $DistPath "browser-browser-1.3.2.xpi")
+    (Join-Path $DistPath "browser-browser-$Version.zip"),
+    (Join-Path $DistPath "browser-browser-$Version.xpi")
 )
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem

@@ -1,14 +1,16 @@
 #pragma once
 
 // Folder sizes from vault-raggae's folder index (MFT + USN journal on every drive, owned by the gateway since
-// Thu 22 Oct 2026), over HTTP on 127.0.0.1:8750. Everything stays as the fallback (and for search) until the
-// gateway has a file-name index.
+// Thu 22 Oct 2026), over HTTP on 127.0.0.1:8750. The only source of folder sizes: Everything is retired.
 
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 
 namespace raggae_client {
+
+// The gateway answers /v1/health.
+bool is_available();
 
 // Sizes of a folder's immediate subfolders, keyed by lowercased name (the shape everything_client returns).
 // Empty when the gateway is down or the folder is not indexed.

@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(browser_browser_host C CXX)
+project(browser_browser_host CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_C_STANDARD 11)
 
 # Compiler options for MSVC
 if(MSVC)
@@ -19,10 +18,8 @@ set(SOURCES
     src/main.cpp
     src/protocol.cpp
     src/fs_ops.cpp
-    src/everything_client.cpp
     src/raggae_client.cpp
     src/http_server.cpp
-    src/Everything.c
 )
 
 add_executable(browser_browser_host ${SOURCES})

@@ -6,6 +6,20 @@ import { ICONS, getFileIcon } from '../../common/icons.js';
 import { escapeHtml, copyToClipboard, showToast } from '../../common/utils.js';
 import { CodeViewer } from './codeViewer.js';
 
+/**
+ * The few facts worth reading at a glance from a vault-raggae v2 media record (schema 2, <file.ext>.json).
+ * The record merges two families: the video family keeps ffprobe fields at the root (duration, width, height,
+ * codec, fps, enhancements…), the image family an `image` block; v2 adds `vw` {kind, id, created, updated},
+ * `master` {basename, size, relpath, root_label}, `fingerprints` {oshash, source}, `companions` [{role, path}],
+ * and per-producer summaries under `vision` / `sound` (e.g. record.vision.tubevision = {..., updated}).
+ * @param {Object} record parsed sidecar JSON
+ * @returns {Array<[string, string]>} [label, value] rows, in display order; [] shows no summary
+ */
+function summarizeRecord(record) {
+  // TODO(human): pick the rows (label, display string) to show above the raw JSON.
+  return [];
+}
+
 export class PropertiesModal {
   constructor() {
     this.modalEl = null;
@@ -156,10 +170,13 @@ export class PropertiesModal {
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             ${sidecars.map((sc, idx) => `
               <button class="vwsq-btn vwsq-btn--sm ${idx === this.activeSidecarIndex ? 'vwsq-btn--primary' : 'vwsq-btn--ghost'} vwsq-sc-btn" data-scindex="${idx}">
-                ${escapeHtml(sc.name)}
+                ${sc.role ? `<span style="opacity: 0.7;">${escapeHtml(sc.role)} ·</span> ` : ''}${escapeHtml(sc.name)}
               </button>
             `).join('')}
           </div>
+
+          <!-- v2 record summary (filled for record sidecars) -->
+          <div id="vwsq-sc-summary" style="display: none; grid-template-columns: 140px 1fr; gap: 6px 8px; font-size: 13px;"></div>
 
           <!-- Loading state -->
           <div id="vwsq-sc-content-area" style="background: var(--vwsq-console-bg, rgba(0,0,0,0.4)); border-radius: 8px; padding: 14px; border: 1px solid var(--vwsq-console-border, rgba(255,255,255,0.06)); font-family: var(--vwsq-font-mono); font-size: 12px; max-height: 45vh; overflow: auto; white-space: pre-wrap; word-break: break-word;">
@@ -177,8 +194,18 @@ export class PropertiesModal {
 
         if (activeSc.name.endsWith('.json')) {
           try {
-            const formatted = JSON.stringify(JSON.parse(text), null, 2);
-            contentArea.innerHTML = CodeViewer.highlight(formatted, 'json');
+            const parsed = JSON.parse(text);
+            contentArea.innerHTML = CodeViewer.highlight(JSON.stringify(parsed, null, 2), 'json');
+
+            const rows = activeSc.role === 'record' && parsed && parsed.schema >= 2 ? summarizeRecord(parsed) : [];
+            const summaryEl = body.querySelector('#vwsq-sc-summary');
+            if (summaryEl && rows.length) {
+              summaryEl.innerHTML = rows.map(([label, value]) => `
+                <span style="color: var(--vwsq-console-text-dim);">${escapeHtml(label)}</span>
+                <span style="color: var(--vwsq-console-text-bright); word-break: break-all;">${escapeHtml(String(value))}</span>
+              `).join('');
+              summaryEl.style.display = 'grid';
+            }
           } catch (e) {
             contentArea.textContent = text;
           }

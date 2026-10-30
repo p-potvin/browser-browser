@@ -403,6 +403,7 @@
 
 .vwsq-grid-card:hover .vwsq-card-actions {
   opacity: 1;
+  z-index: 1;
 }
 
 .vwsq-card-action-btn {
