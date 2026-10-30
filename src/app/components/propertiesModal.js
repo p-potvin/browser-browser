@@ -16,8 +16,41 @@ import { CodeViewer } from './codeViewer.js';
  * @returns {Array<[string, string]>} [label, value] rows, in display order; [] shows no summary
  */
 function summarizeRecord(record) {
-  // TODO(human): pick the rows (label, display string) to show above the raw JSON.
-  return [];
+  const vw = record.vw || {};
+  const master = record.master || {};
+  const fp = record.fingerprints || {};
+  const rows = [];
+  const add = (label, value) => { if (value !== undefined && value !== null && value !== '') rows.push([label, value]); };
+
+  add('Kind', vw.kind);
+  add('VaultWares ID', vw.id);
+  // relpath is relative to the media root (e.g. D:\Media Streaming); root_label is only that root's drive
+  add('Path in library', master.relpath);
+
+  // Video family: ffprobe fields at the root
+  if (Number.isFinite(record.duration)) add('Duration', formatDuration(record.duration));
+  if (record.width && record.height) add('Resolution', `${record.width} × ${record.height}`);
+  add('Codecs', [record.codec, record.audioCodec].filter(Boolean).join(' / '));
+  if (Number.isFinite(record.fps)) add('Frame rate', `${Math.round(record.fps * 100) / 100} fps`);
+  if (record.enhancedPath || (record.enhancements || []).length) add('Enhanced', 'yes');
+
+  if (fp.oshash) add('Fingerprint', `oshash ${fp.oshash}${fp.source ? ` (${fp.source})` : ''}`);
+  if (Array.isArray(record.companions) && record.companions.length) {
+    add('Companions', [...new Set(record.companions.map(c => c.role))].join(', '));
+  }
+  // Which producers have summarized the file (each owns its own entry under vision / sound)
+  const producers = [...Object.keys(record.vision || {}), ...Object.keys(record.sound || {})];
+  if (producers.length) add('Analyzed by', [...new Set(producers)].join(', '));
+  add('Record updated', vw.updated || vw.created);
+  return rows;
+}
+
+function formatDuration(seconds) {
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
 export class PropertiesModal {
