@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, using timestamps formatted as `DDD, dd MMM YYYY HH:mm`.
 
+## [1.6.0] - Fri, 30 Oct 2026 16:35
+
+### Added
+- **Record summary**: Properties → Sidecars shows a v2 record's kind, ID, path in library, duration, resolution, codecs, frame rate, enhanced, oshash and source, companion roles, analysing producers and last update above the raw JSON; rows appear only for fields the record has.
+
 ## [1.5.0] - Fri, 30 Oct 2026 16:05
 
 ### Changed
